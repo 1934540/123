@@ -1,11 +1,12 @@
 import type React from "react"
-import { Building2, Plus, Power, UserPlus } from "lucide-react"
+import Link from "next/link"
+import { Building2, Eye, Plus, Power, UserPlus } from "lucide-react"
 import { createHubAction, createHubAdminAction, toggleHubAction } from "@/app/actions/owner"
 import { requireRole } from "@/app/actions/auth"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { EmptyState } from "@/components/empty-state"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -77,14 +78,20 @@ export default async function OwnerPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <form action={formAction(toggleHubAction)}>
-                            <input type="hidden" name="hubId" value={hub.id} />
-                            <input type="hidden" name="isActive" value={String(hub.is_active)} />
-                            <Button size="sm" variant="outline" type="submit">
-                              <Power className="h-4 w-4" />
-                              {hub.is_active ? "Өшіру" : "Қосу"}
-                            </Button>
-                          </form>
+                          <div className="flex justify-end gap-2">
+                            <Link className={buttonVariants({ size: "sm", variant: "outline" })} href={`/owner/hubs/${hub.id}`}>
+                              <Eye className="h-4 w-4" />
+                              Проверить
+                            </Link>
+                            <form action={formAction(toggleHubAction)}>
+                              <input type="hidden" name="hubId" value={hub.id} />
+                              <input type="hidden" name="isActive" value={String(hub.is_active)} />
+                              <Button size="sm" variant="outline" type="submit">
+                                <Power className="h-4 w-4" />
+                                {hub.is_active ? "Өшіру" : "Қосу"}
+                              </Button>
+                            </form>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
