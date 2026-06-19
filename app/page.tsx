@@ -2,7 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { ArrowRight, MapPin, QrCode, ScanLine, ShieldCheck, Users, Building2 } from "lucide-react"
 import { Brand } from "@/components/brand"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { getSession } from "@/lib/session"
 
 export default async function HomePage() {
@@ -41,12 +41,10 @@ export default async function HomePage() {
       <header className="border-b border-border">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <Brand />
-          <Button asChild>
-            <Link href="/login">
+          <Link className={buttonVariants()} href="/login">
               Кіру
               <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
+          </Link>
         </div>
       </header>
 
@@ -66,12 +64,10 @@ export default async function HomePage() {
               Бір QR сканерлеу жеткілікті, орналасуды жүйе өзі тексереді.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button size="lg" asChild>
-                <Link href="/login">
+              <Link className={buttonVariants({ size: "lg" })} href="/login">
                   Жүйеге кіру
                   <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
+              </Link>
             </div>
           </div>
 

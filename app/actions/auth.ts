@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation"
 import { getAdminClient } from "@/lib/supabase/admin"
 import { createSession, destroySession, getSession } from "@/lib/session"
+import { verifyPassword } from "@/lib/password"
 import type { Role, SessionData } from "@/lib/types"
 
 export type LoginState = { error?: string }
@@ -35,7 +36,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     .eq("username", username)
     .maybeSingle()
 
-  if (user && user.password === password) {
+  if (user && verifyPassword(password, user.password)) {
     const session: SessionData = {
       userId: user.id,
       role: user.role as Role,
@@ -54,7 +55,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     .eq("username", username)
     .maybeSingle()
 
-  if (employee && employee.password === password) {
+  if (employee && verifyPassword(password, employee.password)) {
     if (!employee.is_active) {
       return { error: "Бұл аккаунт өшірілген. Әкімшіге хабарласыңыз." }
     }

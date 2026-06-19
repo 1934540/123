@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { appDateString } from "@/lib/date"
 
 // Note: Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set in env
 export async function GET(req: Request) {
@@ -18,7 +19,7 @@ export async function GET(req: Request) {
 
   const supabase = createClient(supabaseUrl, supabaseKey)
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = appDateString()
   const nowStr = new Date().toISOString()
 
   // Find all open attendance logs for today

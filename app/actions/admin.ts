@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { getAdminClient } from "@/lib/supabase/admin"
 import { getSession } from "@/lib/session"
+import { hashPassword } from "@/lib/password"
 
 type ActionResult = { ok: boolean; message: string }
 
@@ -69,7 +70,7 @@ export async function addEmployeeAction(formData: FormData): Promise<ActionResul
     public_id: username.toUpperCase(),
     name,
     username,
-    password,
+    password: hashPassword(password),
     organization: organization || null,
     department: department || null,
     role: "employee",

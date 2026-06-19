@@ -3,15 +3,12 @@
 import { revalidatePath } from "next/cache"
 import { getAdminClient } from "@/lib/supabase/admin"
 import { getSession } from "@/lib/session"
+import { appDateString } from "@/lib/date"
 
 export type BreakResult = {
   ok: boolean
   message: string
   action?: "start_break" | "end_break"
-}
-
-function localDateString(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 export async function toggleBreakAction(): Promise<BreakResult> {
@@ -21,7 +18,7 @@ export async function toggleBreakAction(): Promise<BreakResult> {
   }
 
   const supabase = getAdminClient()
-  const today = localDateString()
+  const today = appDateString()
   const now = new Date().toISOString()
 
   // Find today's attendance log

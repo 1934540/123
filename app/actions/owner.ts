@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { getAdminClient } from "@/lib/supabase/admin"
 import { getSession } from "@/lib/session"
+import { hashPassword } from "@/lib/password"
 
 type ActionResult = { ok: boolean; message: string }
 
@@ -64,7 +65,7 @@ export async function createHubAdminAction(formData: FormData): Promise<ActionRe
   const supabase = getAdminClient()
   const { error } = await supabase.from("users").insert({
     username,
-    password,
+    password: hashPassword(password),
     role: "hub_admin",
     hub_id: hubId,
     display_name: displayName || username,

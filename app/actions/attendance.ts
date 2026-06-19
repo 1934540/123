@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { getAdminClient } from "@/lib/supabase/admin"
 import { getSession } from "@/lib/session"
 import { haversineMeters, formatDuration } from "@/lib/geo"
+import { appDateString, formatAppTime } from "@/lib/date"
 
 export type ScanResult = {
   ok: boolean
@@ -20,10 +21,6 @@ type ScanInput = {
 }
 
 const QR_PREFIX = "KZOHUB:"
-
-function localDateString(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 function parseTime(timeStr: string): Date {
   // timeStr is like "09:00:00"
@@ -105,7 +102,7 @@ export async function scanAction(input: ScanInput): Promise<ScanResult> {
     }
   }
 
-  const today = localDateString()
+  const today = appDateString()
   const nowStr = new Date().toISOString()
   const now = new Date()
 
@@ -139,7 +136,7 @@ export async function scanAction(input: ScanInput): Promise<ScanResult> {
       device_id_used: input.deviceId,
     })
     revalidatePath("/employee")
-    return { ok: true, action: "check_in", distance, message: `Келу белгіленді (${status}): ${formatTime(nowStr)}` }
+    return { ok: true, action: "check_in", distance, message: `Келу белгіленді (${status}): ${formatAppTime(nowStr)}` }
   }
 
   // Already checked out today
@@ -157,10 +154,17 @@ export async function scanAction(input: ScanInput): Promise<ScanResult> {
   }
 
   const checkInTime = new Date(log.check_in_time as string).getTime()
-  const durationMs = now.getTime() - checkInTime
-  
-  // NOTE: In a full system, you would subtract break durations here.
-  // We will leave this for the Break logic extension.
+  const { data: completedBreaks } = await supabase
+    .from("breaks")
+    .select("start_time, end_time")
+    .eq("attendance_log_id", log.id)
+    .not("end_time", "is", null)
+
+  const breakMs = (completedBreaks ?? []).reduce((total, item) => {
+    if (!item.start_time || !item.end_time) return total
+    return total + Math.max(0, new Date(item.end_time).getTime() - new Date(item.start_time).getTime())
+  }, 0)
+  const durationMs = Math.max(0, now.getTime() - checkInTime - breakMs)
 
   await supabase
     .from("attendance_logs")
@@ -179,10 +183,6 @@ export async function scanAction(input: ScanInput): Promise<ScanResult> {
     ok: true,
     action: "check_out",
     distance,
-    message: `Кету белгіленді (${outStatus}): ${formatTime(nowStr)} (${formatDuration(durationMs)})`,
+    message: `Кету белгіленді (${outStatus}): ${formatAppTime(nowStr)} (${formatDuration(durationMs)})`,
   }
-}
-
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
 }

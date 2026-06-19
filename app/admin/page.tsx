@@ -1,0 +1,266 @@
+import type React from "react"
+import { MapPin, Power, UserPlus } from "lucide-react"
+import { addEmployeeAction, excuseLogAction, toggleEmployeeAction, updateGeofenceAction } from "@/app/actions/admin"
+import { requireRole } from "@/app/actions/auth"
+import { DashboardShell } from "@/components/dashboard-shell"
+import { EmptyState } from "@/components/empty-state"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { formatAppDateTime } from "@/lib/date"
+import { getAdminClient } from "@/lib/supabase/admin"
+import type { AttendanceLog, Employee, Hub } from "@/lib/types"
+
+export default async function AdminPage() {
+  const session = await requireRole("hub_admin", "super_admin")
+  const supabase = getAdminClient()
+
+  let hubId = session.hubId
+  if (!hubId && session.role === "super_admin") {
+    const { data: firstHub } = await supabase.from("hubs").select("id").order("created_at").limit(1).maybeSingle()
+    hubId = firstHub?.id ?? null
+  }
+
+  if (!hubId) {
+    return (
+      <DashboardShell session={session} title="Хаб директоры панелі">
+        <EmptyState>Алдымен бас әкімші панелінде хаб құрыңыз.</EmptyState>
+      </DashboardShell>
+    )
+  }
+
+  const [{ data: hub }, { data: employees }, { data: logs }] = await Promise.all([
+    supabase.from("hubs").select("*").eq("id", hubId).maybeSingle(),
+    supabase.from("employees").select("*").eq("hub_id", hubId).order("created_at", { ascending: false }),
+    supabase
+      .from("attendance_logs")
+      .select("*")
+      .eq("hub_id", hubId)
+      .order("date", { ascending: false })
+      .order("check_in_time", { ascending: false })
+      .limit(30),
+  ])
+
+  const currentHub = hub as Hub | null
+  const employeeList = (employees ?? []) as Employee[]
+  const logList = (logs ?? []) as AttendanceLog[]
+
+  return (
+    <DashboardShell session={session} title={currentHub?.name ?? "Хаб директоры панелі"}>
+      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+        <section className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <StatCard label="Қызметкерлер" value={employeeList.length} />
+            <StatCard label="Белсенді" value={employeeList.filter((employee) => employee.is_active).length} />
+            <StatCard label="Соңғы жазбалар" value={logList.length} />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Қызметкерлер</CardTitle>
+              <CardDescription>Логиндер, құрылғы байланысы және белсенділік.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {employeeList.length === 0 ? (
+                <EmptyState>Бұл хабта қызметкер жоқ.</EmptyState>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Аты</TableHead>
+                      <TableHead>Логин</TableHead>
+                      <TableHead>Бөлім</TableHead>
+                      <TableHead>Құрылғы</TableHead>
+                      <TableHead>Күй</TableHead>
+                      <TableHead className="text-right">Әрекет</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {employeeList.map((employee) => (
+                      <TableRow key={employee.id}>
+                        <TableCell className="font-medium">{employee.name}</TableCell>
+                        <TableCell>{employee.username ?? "—"}</TableCell>
+                        <TableCell>{employee.department ?? employee.organization ?? "—"}</TableCell>
+                        <TableCell className="max-w-36 truncate font-mono text-xs">
+                          {employee.device_id ?? "байланбаған"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={employee.is_active ? "default" : "secondary"}>
+                            {employee.is_active ? "Белсенді" : "Өшірілген"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <form action={formAction(toggleEmployeeAction)}>
+                            <input type="hidden" name="hubId" value={hubId} />
+                            <input type="hidden" name="employeeId" value={employee.id} />
+                            <input type="hidden" name="isActive" value={String(employee.is_active)} />
+                            <Button size="sm" variant="outline" type="submit">
+                              <Power className="h-4 w-4" />
+                              {employee.is_active ? "Өшіру" : "Қосу"}
+                            </Button>
+                          </form>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Келу-кету журналы</CardTitle>
+              <CardDescription>Соңғы 30 жазба.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {logList.length === 0 ? (
+                <EmptyState>Журналда жазба жоқ.</EmptyState>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Күні</TableHead>
+                      <TableHead>Қызметкер</TableHead>
+                      <TableHead>Келді</TableHead>
+                      <TableHead>Кетті</TableHead>
+                      <TableHead>Ұзақтығы</TableHead>
+                      <TableHead>Күй</TableHead>
+                      <TableHead className="text-right">Себепті</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {logList.map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell>{log.date}</TableCell>
+                        <TableCell>{employeeList.find((employee) => employee.id === log.employee_id)?.name ?? "—"}</TableCell>
+                        <TableCell>{formatAppDateTime(log.check_in_time)}</TableCell>
+                        <TableCell>{formatAppDateTime(log.check_out_time)}</TableCell>
+                        <TableCell>{log.work_duration ?? "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant={log.is_excused ? "secondary" : statusVariant(log.status)}>
+                            {log.is_excused ? "Себепті" : log.status ?? "—"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {!log.is_excused && (
+                            <form action={formAction(excuseLogAction)}>
+                              <input type="hidden" name="hubId" value={hubId} />
+                              <input type="hidden" name="logId" value={log.id} />
+                              <Button size="sm" variant="outline" type="submit">
+                                Белгілеу
+                              </Button>
+                            </form>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+
+        <aside className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-primary" />
+                Геозона
+              </CardTitle>
+              <CardDescription>QR сканерлеу осы аймақ ішінде қабылданады.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form action={formAction(updateGeofenceAction)} className="space-y-3">
+                <input type="hidden" name="hubId" value={hubId} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Latitude" name="latitude" defaultValue={currentHub?.latitude ?? ""} required />
+                  <Field label="Longitude" name="longitude" defaultValue={currentHub?.longitude ?? ""} required />
+                </div>
+                <Field
+                  label="Радиус, м"
+                  name="radius"
+                  type="number"
+                  min="20"
+                  defaultValue={currentHub?.geofence_radius ?? 150}
+                  required
+                />
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="enabled"
+                    defaultChecked={currentHub?.geofence_enabled ?? true}
+                    className="size-4 accent-primary"
+                  />
+                  Геозонаны қосу
+                </label>
+                <Button type="submit" className="w-full">
+                  <MapPin className="h-4 w-4" />
+                  Сақтау
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserPlus className="h-4 w-4 text-primary" />
+                Қызметкер қосу
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form action={formAction(addEmployeeAction)} className="space-y-3">
+                <input type="hidden" name="hubId" value={hubId} />
+                <Field label="Аты" name="name" placeholder="Айбек" required />
+                <Field label="Логин" name="username" placeholder="aibek" required />
+                <Field label="Құпиясөз" name="password" type="password" required />
+                <Field label="Ұйым" name="organization" placeholder="KzoHub" />
+                <Field label="Бөлім" name="department" placeholder="Reception" />
+                <Button type="submit" className="w-full">
+                  <UserPlus className="h-4 w-4" />
+                  Қосу
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
+    </DashboardShell>
+  )
+}
+
+function statusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
+  if (status === "Late" || status === "Early Leave") return "destructive"
+  if (status === "Auto-closed") return "outline"
+  return "default"
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+        <CardTitle className="text-2xl">{value}</CardTitle>
+      </CardHeader>
+    </Card>
+  )
+}
+
+function formAction(action: (formData: FormData) => Promise<unknown>) {
+  return action as (formData: FormData) => Promise<void>
+}
+
+function Field(props: React.ComponentProps<typeof Input> & { label: string; name: string }) {
+  const { label, name, ...inputProps } = props
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={name}>{label}</Label>
+      <Input id={name} name={name} {...inputProps} />
+    </div>
+  )
+}
