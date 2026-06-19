@@ -4,6 +4,7 @@ import { addEmployeeAction, excuseLogAction, toggleEmployeeAction, updateGeofenc
 import { requireRole } from "@/app/actions/auth"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { EmptyState } from "@/components/empty-state"
+import { GeofenceMapField } from "@/components/geofence-map-field"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -177,27 +178,12 @@ export default async function AdminPage() {
             <CardContent>
               <form action={formAction(updateGeofenceAction)} className="space-y-3">
                 <input type="hidden" name="hubId" value={hubId} />
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="Latitude" name="latitude" defaultValue={currentHub?.latitude ?? ""} required />
-                  <Field label="Longitude" name="longitude" defaultValue={currentHub?.longitude ?? ""} required />
-                </div>
-                <Field
-                  label="Радиус, м"
-                  name="radius"
-                  type="number"
-                  min="20"
-                  defaultValue={currentHub?.geofence_radius ?? 150}
-                  required
+                <GeofenceMapField
+                  latitude={currentHub?.latitude}
+                  longitude={currentHub?.longitude}
+                  radius={currentHub?.geofence_radius}
+                  enabled={currentHub?.geofence_enabled ?? true}
                 />
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="enabled"
-                    defaultChecked={currentHub?.geofence_enabled ?? true}
-                    className="size-4 accent-primary"
-                  />
-                  Геозонаны қосу
-                </label>
                 <Button type="submit" className="w-full">
                   <MapPin className="h-4 w-4" />
                   Сақтау

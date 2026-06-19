@@ -1,7 +1,7 @@
--- Migration Script for Attendance Tracking System
+-- Migration Script for AstanaHub Employee
 
 -- 1. Create shifts table
-CREATE TABLE public.shifts (
+CREATE TABLE IF NOT EXISTS public.shifts (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     hub_id uuid REFERENCES public.hubs(id) ON DELETE CASCADE,
     name text NOT NULL,
@@ -15,20 +15,20 @@ ALTER TABLE public.shifts ENABLE ROW LEVEL SECURITY;
 
 -- 2. Add columns to employees table
 ALTER TABLE public.employees
-ADD COLUMN shift_id uuid REFERENCES public.shifts(id) ON DELETE SET NULL,
-ADD COLUMN device_id text;
+ADD COLUMN IF NOT EXISTS shift_id uuid REFERENCES public.shifts(id) ON DELETE SET NULL,
+ADD COLUMN IF NOT EXISTS device_id text;
 
 -- 3. Add columns to attendance_logs table
 ALTER TABLE public.attendance_logs
-ADD COLUMN location_in_lat double precision,
-ADD COLUMN location_in_lng double precision,
-ADD COLUMN location_out_lat double precision,
-ADD COLUMN location_out_lng double precision,
-ADD COLUMN device_id_used text;
+ADD COLUMN IF NOT EXISTS location_in_lat double precision,
+ADD COLUMN IF NOT EXISTS location_in_lng double precision,
+ADD COLUMN IF NOT EXISTS location_out_lat double precision,
+ADD COLUMN IF NOT EXISTS location_out_lng double precision,
+ADD COLUMN IF NOT EXISTS device_id_used text;
 -- Note: 'status' column already exists in attendance_logs, we'll just store different string values ("On Time", "Late", "Early Leave", "present")
 
 -- 4. Create breaks table
-CREATE TABLE public.breaks (
+CREATE TABLE IF NOT EXISTS public.breaks (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     attendance_log_id uuid REFERENCES public.attendance_logs(id) ON DELETE CASCADE NOT NULL,
     start_time timestamp with time zone NOT NULL,
@@ -38,3 +38,6 @@ CREATE TABLE public.breaks (
 
 -- Enable RLS for breaks
 ALTER TABLE public.breaks ENABLE ROW LEVEL SECURITY;
+
+-- Reload Supabase PostgREST schema cache after DDL changes.
+NOTIFY pgrst, 'reload schema';
