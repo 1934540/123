@@ -5,7 +5,7 @@ let cached: SupabaseClient | null = null
 
 /**
  * Server-only Supabase client using the service role key.
- * KzoHubQR uses its own username/password auth (users + employees tables),
+ * AstanaHub Employee uses its own username/password auth (users + employees tables),
  * so all data access happens server-side with the service role and is
  * authorized by our own session logic. The key is never exposed to clients.
  */

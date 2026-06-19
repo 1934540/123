@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { ArrowRight, MapPin, QrCode, ScanLine, ShieldCheck, Users, Building2 } from "lucide-react"
+import { ArrowRight, Building2, MapPin, MousePointerClick, ShieldCheck, Users } from "lucide-react"
 import { Brand } from "@/components/brand"
 import { buttonVariants } from "@/components/ui/button"
 import { getSession } from "@/lib/session"
@@ -15,24 +15,24 @@ export default async function HomePage() {
 
   const features = [
     {
-      icon: ScanLine,
-      title: "QR сканерлеу",
-      desc: "Қызметкер хабтың QR кодын сканерлеп, бір қозғалыста келу немесе кету уақытын белгілейді.",
+      icon: MousePointerClick,
+      title: "Бір батырмамен белгілеу",
+      desc: "Қызметкер келгенде немесе кеткенде батырманы басады, жүйе уақытты серверде тіркейді.",
     },
     {
       icon: MapPin,
-      title: "Геозона тексеруі",
-      desc: "GPS координаттары арқылы қызметкердің хаб аумағында екенін автоматты түрде тексереді.",
+      title: "GPS тексеруі",
+      desc: "Браузер орналасуға рұқсат сұрайды және координаттарды жұмыс нүктесінің геозонасымен салыстырады.",
     },
     {
       icon: Users,
       title: "Үш рөл",
-      desc: "Қызметкер кабинеті, хаб директоры панелі және бас әкімшінің басқару орталығы.",
+      desc: "Қызметкер кабинеті, жұмыс нүктесі директоры және бас әкімші басқару орталығы.",
     },
     {
       icon: ShieldCheck,
-      title: "Сенімді есеп",
-      desc: "Әр келу-кету уақыты сервер жағында тексеріліп, өзгертуге болмайтын журналға жазылады.",
+      title: "Сенімді журнал",
+      desc: "Келу-кету уақыты, құрылғы және орналасу сервер жағында сақталады.",
     },
   ]
 
@@ -42,8 +42,8 @@ export default async function HomePage() {
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <Brand />
           <Link className={buttonVariants()} href="/login">
-              Кіру
-              <ArrowRight className="h-4 w-4" />
+            Кіру
+            <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </header>
@@ -52,33 +52,33 @@ export default async function HomePage() {
         <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-              <QrCode className="h-3.5 w-3.5 text-primary" />
-              Коворкинг-хабтарға арналған есеп жүйесі
+              <MapPin className="h-3.5 w-3.5 text-primary" />
+              GPS негізіндегі қызметкерлер есебі
             </div>
             <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-              QR және геозона арқылы{" "}
-              <span className="text-primary">келу-кету есебі</span>
+              AstanaHub Employee
+              <span className="block text-primary">келу-кету есебі</span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
-              KzoHubQR — қызметкерлердің жұмыс уақытын дәл әрі алаяқтыққа жол бермей есептейтін жүйе.
-              Бір QR сканерлеу жеткілікті, орналасуды жүйе өзі тексереді.
+              Қызметкер жұмысқа келгенде батырманы басады. Жүйе GPS рұқсатын сұрап,
+              орналасуды тексереді және уақытты журналға жазады.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link className={buttonVariants({ size: "lg" })} href="/login">
-                  Жүйеге кіру
-                  <ArrowRight className="h-4 w-4" />
+                Жүйеге кіру
+                <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </div>
 
           <div className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {features.map((f) => (
-              <div key={f.title} className="rounded-xl border border-border bg-card p-5">
+            {features.map((feature) => (
+              <div key={feature.title} className="rounded-xl border border-border bg-card p-5">
                 <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
-                  <f.icon className="h-5 w-5" />
+                  <feature.icon className="h-5 w-5" />
                 </div>
-                <h3 className="font-semibold">{f.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+                <h3 className="font-semibold">{feature.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{feature.desc}</p>
               </div>
             ))}
           </div>
@@ -90,7 +90,7 @@ export default async function HomePage() {
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <DemoAccount role="Бас әкімші" login="owner" pass="owner123" />
-              <DemoAccount role="Хаб директоры" login="astana_admin" pass="admin123" />
+              <DemoAccount role="Директор" login="astana_admin" pass="admin123" />
               <DemoAccount role="Қызметкер" login="aibek" pass="emp123" />
             </div>
           </div>
@@ -99,7 +99,7 @@ export default async function HomePage() {
 
       <footer className="border-t border-border">
         <div className="mx-auto w-full max-w-6xl px-4 py-6 text-sm text-muted-foreground sm:px-6">
-          KzoHubQR — QR негізіндегі қатысу есебі.
+          AstanaHub Employee - GPS арқылы қатысу есебі.
         </div>
       </footer>
     </div>

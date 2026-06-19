@@ -49,7 +49,7 @@ export default async function OwnerPage() {
           <Card>
             <CardHeader>
               <CardTitle>Хабтар</CardTitle>
-              <CardDescription>QR UID, геозона және белсенділік күйі.</CardDescription>
+              <CardDescription>Геозона және белсенділік күйі.</CardDescription>
             </CardHeader>
             <CardContent>
               {hubList.length === 0 ? (
@@ -59,7 +59,6 @@ export default async function OwnerPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Атауы</TableHead>
-                      <TableHead>UID</TableHead>
                       <TableHead>Қала</TableHead>
                       <TableHead>Радиус</TableHead>
                       <TableHead>Күй</TableHead>
@@ -70,7 +69,6 @@ export default async function OwnerPage() {
                     {hubList.map((hub) => (
                       <TableRow key={hub.id}>
                         <TableCell className="font-medium">{hub.name}</TableCell>
-                        <TableCell className="font-mono text-xs">KZOHUB:{hub.uid}</TableCell>
                         <TableCell>{hub.city ?? "—"}</TableCell>
                         <TableCell>{hub.geofence_radius} м</TableCell>
                         <TableCell>
@@ -107,7 +105,7 @@ export default async function OwnerPage() {
             </CardHeader>
             <CardContent>
               <form action={formAction(createHubAction)} className="space-y-3">
-                <Field label="Атауы" name="name" placeholder="KzoHub Astana" required />
+                <Field label="Атауы" name="name" placeholder="AstanaHub Office" required />
                 <Field label="Қала" name="city" placeholder="Астана" />
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Latitude" name="latitude" placeholder="51.128" />

@@ -1,6 +1,6 @@
-import { Coffee, QrCode } from "lucide-react"
+import { Coffee, MousePointerClick } from "lucide-react"
 import { requireRole } from "@/app/actions/auth"
-import { EmployeeScan } from "@/app/employee/employee-scan"
+import { AttendanceButton } from "@/app/employee/attendance-button"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { EmptyState } from "@/components/empty-state"
 import { Badge } from "@/components/ui/badge"
@@ -58,16 +58,16 @@ export default async function EmployeePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <QrCode className="h-4 w-4 text-primary" />
-                QR белгілеу
+                <MousePointerClick className="h-4 w-4 text-primary" />
+                Келу-кетуді белгілеу
               </CardTitle>
-              <CardDescription>{currentHub?.name ?? "Хаб бекітілмеген"}</CardDescription>
+              <CardDescription>{currentHub?.name ?? "Жұмыс нүктесі бекітілмеген"}</CardDescription>
             </CardHeader>
             <CardContent>
               {currentEmployee?.is_active === false ? (
                 <EmptyState>Аккаунт өшірілген. Әкімшіге хабарласыңыз.</EmptyState>
               ) : (
-                <EmployeeScan hubUid={currentHub?.uid ?? null} activeBreak={activeBreak} />
+                <AttendanceButton activeBreak={activeBreak} />
               )}
             </CardContent>
           </Card>

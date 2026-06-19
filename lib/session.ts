@@ -4,7 +4,7 @@ import crypto from "crypto"
 import type { SessionData } from "./types"
 
 const COOKIE_NAME = "kzo_session"
-const SECRET = process.env.SUPABASE_JWT_SECRET ?? "kzohubqr-dev-fallback-secret-change-me"
+const SECRET = process.env.SUPABASE_JWT_SECRET ?? "astanahub-employee-dev-fallback-secret-change-me"
 const MAX_AGE = 60 * 60 * 24 * 7 // 7 days
 
 function sign(payload: string): string {

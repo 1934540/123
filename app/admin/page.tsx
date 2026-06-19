@@ -172,7 +172,7 @@ export default async function AdminPage() {
                 <MapPin className="h-4 w-4 text-primary" />
                 Геозона
               </CardTitle>
-              <CardDescription>QR сканерлеу осы аймақ ішінде қабылданады.</CardDescription>
+              <CardDescription>Қызметкер батырманы басқанда GPS осы аймақпен салыстырылады.</CardDescription>
             </CardHeader>
             <CardContent>
               <form action={formAction(updateGeofenceAction)} className="space-y-3">
@@ -219,7 +219,7 @@ export default async function AdminPage() {
                 <Field label="Аты" name="name" placeholder="Айбек" required />
                 <Field label="Логин" name="username" placeholder="aibek" required />
                 <Field label="Құпиясөз" name="password" type="password" required />
-                <Field label="Ұйым" name="organization" placeholder="KzoHub" />
+                <Field label="Ұйым" name="organization" placeholder="AstanaHub" />
                 <Field label="Бөлім" name="department" placeholder="Reception" />
                 <Button type="submit" className="w-full">
                   <UserPlus className="h-4 w-4" />
