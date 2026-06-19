@@ -4,7 +4,6 @@ import { createHubAction, createHubAdminAction, toggleHubAction } from "@/app/ac
 import { requireRole } from "@/app/actions/auth"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { EmptyState } from "@/components/empty-state"
-import { GeofenceMapField } from "@/components/geofence-map-field"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -107,9 +106,7 @@ export default async function OwnerPage() {
             <CardContent>
               <form action={formAction(createHubAction)} className="space-y-3">
                 <Field label="Атауы" name="name" placeholder="AstanaHub Office" required />
-                <Field label="Қала" name="city" placeholder="Астана" />
-                <GeofenceMapField latitude={51.0909} longitude={71.4187} radius={150} />
-                <Button type="submit" className="w-full">
+                <Field label="Қала" name="city" placeholder="Астана" />                <Button type="submit" className="w-full">
                   <Building2 className="h-4 w-4" />
                   Құру
                 </Button>

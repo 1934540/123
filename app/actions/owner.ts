@@ -26,9 +26,6 @@ export async function createHubAction(formData: FormData): Promise<ActionResult>
 
   const name = String(formData.get("name") ?? "").trim()
   const city = String(formData.get("city") ?? "").trim()
-  const latitude = Number(formData.get("latitude"))
-  const longitude = Number(formData.get("longitude"))
-  const radius = Number(formData.get("radius")) || 150
 
   if (!name) return { ok: false, message: "Хаб атауы міндетті" }
 
@@ -39,10 +36,10 @@ export async function createHubAction(formData: FormData): Promise<ActionResult>
     slug: `${slugify(name)}-${suffix.toLowerCase()}`,
     name,
     city: city || null,
-    latitude: Number.isNaN(latitude) ? null : latitude,
-    longitude: Number.isNaN(longitude) ? null : longitude,
-    geofence_radius: Math.max(20, Math.round(radius)),
-    geofence_enabled: true,
+    latitude: null,
+    longitude: null,
+    geofence_radius: 150,
+    geofence_enabled: false,
   })
 
   if (error) return { ok: false, message: error.message }
