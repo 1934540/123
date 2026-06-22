@@ -1,5 +1,5 @@
 import type React from "react"
-import { MapPin, Power, UserPlus } from "lucide-react"
+import { Download, MapPin, Power, UserPlus } from "lucide-react"
 import { addEmployeeAction, excuseLogAction, toggleEmployeeAction, updateGeofenceAction } from "@/app/actions/admin"
 import { DirectorAttendanceButton } from "@/app/admin/director-attendance-button"
 import { requireRole } from "@/app/actions/auth"
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { appDateString, formatAppDateTime } from "@/lib/date"
+import { currentMonth } from "@/lib/excel-report"
 import { getAdminClient } from "@/lib/supabase/admin"
 import type { AttendanceLog, DirectorAttendanceLog, Employee, Hub } from "@/lib/types"
 
@@ -20,6 +21,7 @@ export default async function AdminPage() {
   const session = await requireRole("hub_admin", "super_admin")
   const supabase = getAdminClient()
   const today = appDateString()
+  const reportMonth = currentMonth()
 
   let hubId = session.hubId
   if (!hubId && session.role === "super_admin") {
@@ -200,6 +202,27 @@ export default async function AdminPage() {
                   hasCheckedIn={Boolean(todayDirectorLog?.check_in_time)}
                   hasCheckedOut={Boolean(todayDirectorLog?.check_out_time)}
                 />
+              </CardContent>
+            </Card>
+          )}
+
+          {session.role === "hub_admin" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Месячный отчет</CardTitle>
+                <CardDescription>Один Excel-файл: отдельная таблица сотрудников и отдельная таблица директора.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form action="/admin/reports/monthly" method="get" className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="report-month">Месяц</Label>
+                    <Input id="report-month" name="month" type="month" defaultValue={reportMonth} />
+                  </div>
+                  <Button type="submit" variant="outline" className="w-full">
+                    <Download className="h-4 w-4" />
+                    Скачать Excel
+                  </Button>
+                </form>
               </CardContent>
             </Card>
           )}
