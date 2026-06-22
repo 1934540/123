@@ -1,55 +1,62 @@
 # AstanaHub Employee
 
-Web and mobile attendance tracking system for hub employees.
+Система учета присутствия сотрудников для хабов: веб-кабинеты для owner и директоров, веб-кабинет сотрудника, мобильное приложение для GPS-мониторинга и карта присутствия.
 
-The project is focused on presence during the workday: employees mark arrival/departure, the mobile app sends GPS points during the shift, and hub directors see who is inside or outside the hub radius on a map.
+Главная идея проекта: не просто отметить `Пришел` и `Ушел`, а понимать, был ли сотрудник на территории хаба в течение рабочего дня.
 
-## Features
+## Возможности
 
-- Owner dashboard for hubs and regional directors.
-- Hub director dashboard for employees, attendance, reports, geofence setup, and GPS alerts.
-- Employee web dashboard with separate `Пришел` and `Ушел` buttons.
-- Employee import from Excel/CSV/TSV.
-- Monthly Excel-compatible report with separate tables for employees and director.
-- Leaflet map for hub geofence setup.
-- Presence map for latest employee GPS locations.
-- Mobile Expo app for employee login, attendance, and background GPS tracking.
+- Кабинет owner для создания хабов и региональных директоров.
+- Редактирование хабов.
+- Редактирование директоров: имя, должность, логин, новый пароль.
+- Кабинет директора хаба.
+- Управление сотрудниками своего хаба.
+- Редактирование сотрудников: имя, должность, логин, новый пароль.
+- Импорт сотрудников из Excel/CSV/TSV.
+- Настройка геозоны хаба на карте Leaflet.
+- Кнопки `Пришел` и `Ушел` для сотрудников.
+- Кнопки `Прибытие` и `Отбытие` для директоров.
+- Месячный Excel-отчет: отдельная таблица сотрудников и отдельная таблица директора в одном файле.
+- Мобильное приложение Expo для сотрудников.
+- Фоновая отправка GPS-точек во время смены.
+- Карта присутствия сотрудников в кабинете директора.
+- GPS-тревоги при выходе сотрудника за радиус хаба.
 
-## Roles
+## Роли
 
-- `super_admin`: creates hubs, creates and edits hub directors.
-- `hub_admin`: manages employees of their hub, geofence, reports, GPS alerts.
-- `employee`: marks arrival/departure and sends GPS locations from the mobile app.
+- `super_admin` / owner: создает хабы, создает и редактирует директоров.
+- `hub_admin` / директор: управляет сотрудниками своего хаба, геозоной, отчетами и GPS-тревогами.
+- `employee` / сотрудник: отмечает приход/уход и отправляет GPS-точки через мобильное приложение.
 
-## Web App
+## Веб-приложение
 
-Install dependencies:
+Установка зависимостей:
 
 ```bash
 npm install
 ```
 
-Run development server:
+Запуск в разработке:
 
 ```bash
 npm run dev
 ```
 
-Build:
-
-```bash
-npm run build
-```
-
-Typecheck:
+Проверка типов:
 
 ```bash
 npm run lint
 ```
 
-## Environment
+Production-сборка:
 
-Create `.env` with Supabase values:
+```bash
+npm run build
+```
+
+## Переменные окружения
+
+Создайте `.env`:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=...
@@ -58,86 +65,91 @@ SUPABASE_SERVICE_ROLE_KEY=...
 SUPABASE_JWT_SECRET=...
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` is server-only and must not be exposed to the mobile app.
+`SUPABASE_SERVICE_ROLE_KEY` используется только на сервере. Его нельзя передавать в мобильное приложение или клиентский код.
 
-## Database
+## База данных
 
-Apply `database_migration.sql` in Supabase before testing new features.
+Перед тестированием новых функций примените `database_migration.sql` в Supabase.
 
-Important tables/columns added by the migration:
+Миграция добавляет:
 
 - `shifts`
 - `breaks`
-- employee GPS columns in `attendance_logs`
+- GPS-поля в `attendance_logs`
 - `director_attendance_logs`
 - `users.position`
 - `geofence_events`
 - `employee_location_points`
 
-## Mobile App
+## Мобильное приложение
 
-The mobile app lives in `mobile/`.
+Мобильное приложение находится в папке `mobile/`.
 
-Install dependencies:
+Установка зависимостей:
 
 ```bash
 cd mobile
 npm install
 ```
 
-Run Expo:
+Запуск Expo:
 
 ```bash
 npm run start
 ```
 
-Typecheck:
+Проверка типов:
 
 ```bash
 npm run typecheck
 ```
 
-For real phone testing, set the API URL to your computer LAN address, not `localhost`:
+Для теста на реальном телефоне укажите LAN/IP адрес компьютера, а не `localhost`:
 
 ```bash
 EXPO_PUBLIC_API_URL=http://192.168.1.10:3000 npm run start
 ```
 
-The mobile app:
+Мобильное приложение:
 
-- logs in with employee username/password;
-- calls `/api/mobile/login`;
-- sends arrival/departure to `/api/mobile/attendance`;
-- sends GPS points to `/api/mobile/location`;
-- starts background GPS tracking after `Пришел`;
-- stops tracking after `Ушел`.
+- авторизует сотрудника по логину и паролю;
+- вызывает `/api/mobile/login`;
+- отправляет приход/уход в `/api/mobile/attendance`;
+- отправляет GPS-точки в `/api/mobile/location`;
+- запускает фоновый GPS-мониторинг после `Пришел`;
+- останавливает GPS-мониторинг после `Ушел`.
 
 ## Mobile API
 
-- `POST /api/mobile/login`
-- `POST /api/mobile/attendance`
-- `POST /api/mobile/location`
+- `POST /api/mobile/login` — вход сотрудника.
+- `POST /api/mobile/attendance` — отметка прихода/ухода.
+- `POST /api/mobile/location` — отправка GPS-точки.
 
-Mobile auth uses a signed bearer token from `lib/mobile-auth.ts`.
+Мобильная авторизация использует signed bearer token из `lib/mobile-auth.ts`.
 
-## GPS Presence Logic
+## Логика GPS-присутствия
 
-When the employee is checked in, the mobile app sends GPS points. The backend:
+После отметки `Пришел` мобильное приложение отправляет GPS-точки во время смены.
 
-1. saves every point in `employee_location_points`;
-2. calculates distance to the hub with the Haversine formula;
-3. marks the point as inside/outside the geofence;
-4. creates a `geofence_events` row when the employee is outside the radius.
+Сервер:
 
-The director dashboard shows:
+1. сохраняет каждую точку в `employee_location_points`;
+2. считает расстояние до хаба по формуле Haversine;
+3. определяет, внутри сотрудник радиуса или снаружи;
+4. если сотрудник вне радиуса, создает запись в `geofence_events`.
 
-- hub radius on the map;
-- latest employee points;
-- green marker for inside the radius;
-- red marker for outside the radius;
-- counts for inside/outside/no GPS;
-- latest GPS alerts.
+В кабинете директора отображается:
 
-## Notes
+- карта хаба;
+- круг радиуса;
+- последние GPS-точки сотрудников;
+- зеленый маркер, если сотрудник внутри радиуса;
+- красный маркер, если сотрудник вне радиуса;
+- счетчики: на территории / вне радиуса / нет GPS;
+- последние GPS-тревоги.
 
-Browser GPS is not reliable for 12-hour background tracking. The mobile app is required for stable workday presence monitoring.
+## Важное ограничение
+
+Обычный браузер не подходит для надежного 12-часового GPS-мониторинга в фоне. Для стабильной работы нужна мобильная часть.
+
+На Android используется foreground service. На iOS работа GPS в фоне зависит от разрешений пользователя и системных ограничений.
