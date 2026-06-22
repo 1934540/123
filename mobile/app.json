@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "AstanaHub Employee",
+    "slug": "astanahub-employee",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "astanahubemployee",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "GPS нужен для отметки прихода и ухода.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "GPS используется во время смены для контроля выхода за радиус хаба.",
+        "UIBackgroundModes": ["location"]
+      }
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ],
+      "package": "kz.astanahub.employee"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "GPS используется во время смены для контроля выхода за радиус хаба.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:3000"
+    }
+  }
+}

@@ -63,5 +63,36 @@ CREATE TABLE IF NOT EXISTS public.director_attendance_logs (
 
 ALTER TABLE public.director_attendance_logs ENABLE ROW LEVEL SECURITY;
 
+-- 6. Geofence events from mobile background location tracking
+CREATE TABLE IF NOT EXISTS public.employee_location_points (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    employee_id uuid REFERENCES public.employees(id) ON DELETE CASCADE NOT NULL,
+    hub_id uuid REFERENCES public.hubs(id) ON DELETE CASCADE NOT NULL,
+    latitude double precision NOT NULL,
+    longitude double precision NOT NULL,
+    accuracy double precision,
+    distance_meters integer NOT NULL,
+    radius_meters integer NOT NULL,
+    is_inside_geofence boolean NOT NULL,
+    recorded_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.employee_location_points ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.geofence_events (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    employee_id uuid REFERENCES public.employees(id) ON DELETE CASCADE NOT NULL,
+    hub_id uuid REFERENCES public.hubs(id) ON DELETE CASCADE NOT NULL,
+    event_type text NOT NULL,
+    latitude double precision NOT NULL,
+    longitude double precision NOT NULL,
+    accuracy double precision,
+    distance_meters integer NOT NULL,
+    radius_meters integer NOT NULL,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.geofence_events ENABLE ROW LEVEL SECURITY;
+
 -- Reload Supabase PostgREST schema cache after DDL changes.
 NOTIFY pgrst, 'reload schema';

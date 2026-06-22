@@ -1,5 +1,5 @@
 import type React from "react"
-import { Download, MapPin, Power, Upload, UserPlus } from "lucide-react"
+import { AlertTriangle, Download, MapPin, Power, Upload, UserPlus } from "lucide-react"
 import {
   addEmployeeAction,
   excuseLogAction,
@@ -13,6 +13,7 @@ import { requireRole } from "@/app/actions/auth"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { EmptyState } from "@/components/empty-state"
 import { GeofenceMapField } from "@/components/geofence-map-field"
+import { PresenceMap } from "@/components/presence-map"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,7 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { appDateString, formatAppDateTime } from "@/lib/date"
 import { currentMonth } from "@/lib/excel-report"
 import { getAdminClient } from "@/lib/supabase/admin"
-import type { AttendanceLog, DirectorAttendanceLog, Employee, Hub } from "@/lib/types"
+import type { AttendanceLog, DirectorAttendanceLog, Employee, EmployeeLocationPoint, GeofenceEvent, Hub } from "@/lib/types"
 
 export default async function AdminPage() {
   const session = await requireRole("hub_admin", "super_admin")
@@ -44,7 +45,8 @@ export default async function AdminPage() {
     )
   }
 
-  const [{ data: hub }, { data: employees }, { data: logs }, { data: directorLog }] = await Promise.all([
+  const [{ data: hub }, { data: employees }, { data: logs }, { data: directorLog }, { data: geofenceEvents }, { data: locationPoints }] =
+    await Promise.all([
     supabase.from("hubs").select("*").eq("id", hubId).maybeSingle(),
     supabase.from("employees").select("*").eq("hub_id", hubId).order("created_at", { ascending: false }),
     supabase
@@ -62,17 +64,77 @@ export default async function AdminPage() {
           .eq("date", today)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    supabase
+      .from("geofence_events")
+      .select("*")
+      .eq("hub_id", hubId)
+      .order("created_at", { ascending: false })
+      .limit(10),
+    supabase
+      .from("employee_location_points")
+      .select("*")
+      .eq("hub_id", hubId)
+      .order("recorded_at", { ascending: false })
+      .limit(500),
   ])
 
   const currentHub = hub as Hub | null
   const employeeList = (employees ?? []) as Employee[]
   const logList = (logs ?? []) as AttendanceLog[]
   const todayDirectorLog = directorLog as DirectorAttendanceLog | null
+  const eventList = (geofenceEvents ?? []) as GeofenceEvent[]
+  const pointList = (locationPoints ?? []) as EmployeeLocationPoint[]
+  const latestPointByEmployee = new Map<string, EmployeeLocationPoint>()
+  for (const point of pointList) {
+    if (!latestPointByEmployee.has(point.employee_id)) latestPointByEmployee.set(point.employee_id, point)
+  }
+  const mapEmployees = employeeList
+    .map((employee) => {
+      const point = latestPointByEmployee.get(employee.id)
+      if (!point) return null
+      return {
+        id: employee.id,
+        name: employee.name,
+        latitude: point.latitude,
+        longitude: point.longitude,
+        isInside: point.is_inside_geofence,
+        distanceMeters: point.distance_meters,
+        recordedAt: point.recorded_at,
+      }
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
 
   return (
     <DashboardShell session={session} title={currentHub?.name ?? "Хаб директоры панелі"}>
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <section className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Карта присутствия</CardTitle>
+              <CardDescription>Последние GPS-точки сотрудников относительно радиуса хаба.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {currentHub?.latitude == null || currentHub.longitude == null ? (
+                <EmptyState>Сначала настройте координаты хаба в геозоне.</EmptyState>
+              ) : (
+                <PresenceMap
+                  hub={{
+                    name: currentHub.name,
+                    latitude: currentHub.latitude,
+                    longitude: currentHub.longitude,
+                    radius: currentHub.geofence_radius,
+                  }}
+                  employees={mapEmployees}
+                />
+              )}
+              <div className="grid gap-2 text-sm sm:grid-cols-3">
+                <InfoRow label="На территории" value={String(mapEmployees.filter((item) => item.isInside).length)} />
+                <InfoRow label="Вне радиуса" value={String(mapEmployees.filter((item) => !item.isInside).length)} />
+                <InfoRow label="Нет GPS" value={String(employeeList.length - mapEmployees.length)} />
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid gap-4 sm:grid-cols-3">
             <StatCard label="Қызметкерлер" value={employeeList.length} />
             <StatCard label="Белсенді" value={employeeList.filter((employee) => employee.is_active).length} />
@@ -162,6 +224,44 @@ export default async function AdminPage() {
                     </form>
                   ))}
                 </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                GPS-тревоги
+              </CardTitle>
+              <CardDescription>Последние выходы сотрудников за радиус хаба.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {eventList.length === 0 ? (
+                <EmptyState>Тревог пока нет.</EmptyState>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Время</TableHead>
+                      <TableHead>Сотрудник</TableHead>
+                      <TableHead>Дистанция</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {eventList.map((event) => (
+                      <TableRow key={event.id}>
+                        <TableCell>{formatAppDateTime(event.created_at)}</TableCell>
+                        <TableCell>
+                          {employeeList.find((employee) => employee.id === event.employee_id)?.name ?? "—"}
+                        </TableCell>
+                        <TableCell>
+                          {event.distance_meters} м / {event.radius_meters} м
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>

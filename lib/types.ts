@@ -90,3 +90,29 @@ export type Break = {
   end_time: string | null
   created_at: string
 }
+
+export type GeofenceEvent = {
+  id: string
+  employee_id: string
+  hub_id: string
+  event_type: string
+  latitude: number
+  longitude: number
+  accuracy: number | null
+  distance_meters: number
+  radius_meters: number
+  created_at: string
+}
+
+export type EmployeeLocationPoint = {
+  id: string
+  employee_id: string
+  hub_id: string
+  latitude: number
+  longitude: number
+  accuracy: number | null
+  distance_meters: number
+  radius_meters: number
+  is_inside_geofence: boolean
+  recorded_at: string
+}
