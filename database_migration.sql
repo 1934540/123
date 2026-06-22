@@ -18,6 +18,9 @@ ALTER TABLE public.employees
 ADD COLUMN IF NOT EXISTS shift_id uuid REFERENCES public.shifts(id) ON DELETE SET NULL,
 ADD COLUMN IF NOT EXISTS device_id text;
 
+ALTER TABLE public.users
+ADD COLUMN IF NOT EXISTS position text;
+
 -- 3. Add columns to attendance_logs table
 ALTER TABLE public.attendance_logs
 ADD COLUMN IF NOT EXISTS location_in_lat double precision,

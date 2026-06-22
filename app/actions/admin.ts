@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { getAdminClient } from "@/lib/supabase/admin"
 import { getSession } from "@/lib/session"
 import { hashPassword } from "@/lib/password"
+import { parseEmployeeImport } from "@/lib/employee-import"
 
 type ActionResult = { ok: boolean; message: string }
 
@@ -82,6 +83,77 @@ export async function addEmployeeAction(formData: FormData): Promise<ActionResul
   }
   revalidatePath("/admin")
   return { ok: true, message: "Қызметкер қосылды" }
+}
+
+export async function importEmployeesAction(formData: FormData): Promise<ActionResult> {
+  const hubId = String(formData.get("hubId") ?? "")
+  const access = await requireHubAccess(hubId)
+  if (!access.ok) return { ok: false, message: "Нет доступа" }
+
+  const file = formData.get("file")
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, message: "Выберите Excel-файл" }
+  }
+
+  const { employees, skipped } = await parseEmployeeImport(file)
+  if (employees.length === 0) {
+    return { ok: false, message: "Не найдено строк для импорта. Проверьте заголовки: name, username, password." }
+  }
+
+  const supabase = getAdminClient()
+  const rows = employees.map((employee) => ({ ...employee, hub_id: hubId }))
+  const { error } = await supabase.from("employees").insert(rows)
+
+  if (error) {
+    if (error.code === "23505") return { ok: false, message: "В файле есть логин, который уже занят" }
+    return { ok: false, message: error.message }
+  }
+
+  revalidatePath("/admin")
+  return {
+    ok: true,
+    message: `Импортировано: ${employees.length}${skipped ? `. Пропущено строк: ${skipped}` : ""}`,
+  }
+}
+
+export async function updateEmployeeAction(formData: FormData): Promise<ActionResult> {
+  const hubId = String(formData.get("hubId") ?? "")
+  const employeeId = String(formData.get("employeeId") ?? "")
+  const access = await requireHubAccess(hubId)
+  if (!access.ok) return { ok: false, message: "Нет доступа" }
+
+  const name = String(formData.get("name") ?? "").trim()
+  const username = String(formData.get("username") ?? "").trim().toLowerCase().replace(/\s+/g, "")
+  const password = String(formData.get("password") ?? "")
+  const department = String(formData.get("department") ?? "").trim()
+
+  if (!employeeId || !name || !username) {
+    return { ok: false, message: "Имя и логин обязательны" }
+  }
+
+  const updates: Record<string, string | null> = {
+    name,
+    username,
+    public_id: username.toUpperCase(),
+    department: department || null,
+    updated_at: new Date().toISOString(),
+  }
+
+  if (password.trim()) {
+    updates.password = hashPassword(password)
+  }
+
+  const supabase = getAdminClient()
+  const { error } = await supabase.from("employees").update(updates).eq("id", employeeId).eq("hub_id", hubId)
+
+  if (error) {
+    if (error.code === "23505") return { ok: false, message: "Этот логин уже занят" }
+    return { ok: false, message: error.message }
+  }
+
+  revalidatePath("/admin")
+  revalidatePath(`/owner/hubs/${hubId}`)
+  return { ok: true, message: "Сотрудник обновлен" }
 }
 
 export async function toggleEmployeeAction(formData: FormData): Promise<ActionResult> {

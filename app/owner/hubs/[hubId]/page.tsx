@@ -17,6 +17,7 @@ type HubDirector = {
   username: string
   display_name: string | null
   hub_id: string | null
+  position: string | null
 }
 
 export default async function OwnerHubPage({
@@ -32,7 +33,7 @@ export default async function OwnerHubPage({
     supabase.from("hubs").select("*").eq("id", hubId).maybeSingle(),
     supabase
       .from("users")
-      .select("id, username, display_name, hub_id")
+      .select("id, username, display_name, hub_id, position")
       .eq("role", "hub_admin")
       .eq("hub_id", hubId)
       .order("username"),
@@ -84,6 +85,7 @@ export default async function OwnerHubPage({
                   {directorList.map((director) => (
                     <div key={director.id} className="rounded-lg border border-border bg-background/40 p-3">
                       <div className="font-medium">{director.display_name ?? director.username}</div>
+                      <div className="text-sm text-muted-foreground">{director.position ?? "Директор"}</div>
                       <div className="font-mono text-xs text-muted-foreground">{director.username}</div>
                     </div>
                   ))}

@@ -1,6 +1,13 @@
 import type React from "react"
-import { Download, MapPin, Power, UserPlus } from "lucide-react"
-import { addEmployeeAction, excuseLogAction, toggleEmployeeAction, updateGeofenceAction } from "@/app/actions/admin"
+import { Download, MapPin, Power, Upload, UserPlus } from "lucide-react"
+import {
+  addEmployeeAction,
+  excuseLogAction,
+  importEmployeesAction,
+  toggleEmployeeAction,
+  updateEmployeeAction,
+  updateGeofenceAction,
+} from "@/app/actions/admin"
 import { DirectorAttendanceButton } from "@/app/admin/director-attendance-button"
 import { requireRole } from "@/app/actions/auth"
 import { DashboardShell } from "@/components/dashboard-shell"
@@ -121,6 +128,40 @@ export default async function AdminPage() {
                     ))}
                   </TableBody>
                 </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Редактировать сотрудников</CardTitle>
+              <CardDescription>Имя, должность, логин и новый пароль сотрудников вашего хаба.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {employeeList.length === 0 ? (
+                <EmptyState>Сотрудников пока нет.</EmptyState>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {employeeList.map((employee) => (
+                    <form
+                      key={employee.id}
+                      action={formAction(updateEmployeeAction)}
+                      className="rounded-lg border border-border bg-background/40 p-3"
+                    >
+                      <input type="hidden" name="hubId" value={hubId} />
+                      <input type="hidden" name="employeeId" value={employee.id} />
+                      <div className="grid gap-3">
+                        <Field label="Имя" name="name" defaultValue={employee.name} required />
+                        <Field label="Должность" name="department" defaultValue={employee.department ?? ""} />
+                        <Field label="Логин" name="username" defaultValue={employee.username ?? ""} required />
+                        <Field label="Новый пароль" name="password" type="password" placeholder="Оставьте пустым" />
+                        <Button type="submit" variant="outline" className="w-full">
+                          Сохранить
+                        </Button>
+                      </div>
+                    </form>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -270,6 +311,29 @@ export default async function AdminPage() {
                 <Button type="submit" className="w-full">
                   <UserPlus className="h-4 w-4" />
                   Қосу
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-4 w-4 text-primary" />
+                Импорт сотрудников
+              </CardTitle>
+              <CardDescription>Excel-файл с колонками: name, username, password, organization, department.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form action={formAction(importEmployeesAction)} className="space-y-3">
+                <input type="hidden" name="hubId" value={hubId} />
+                <div className="space-y-1.5">
+                  <Label htmlFor="employee-import">Excel-файл</Label>
+                  <Input id="employee-import" name="file" type="file" accept=".xlsx,.csv,.tsv" required />
+                </div>
+                <Button type="submit" variant="outline" className="w-full">
+                  <Upload className="h-4 w-4" />
+                  Импортировать
                 </Button>
               </form>
             </CardContent>

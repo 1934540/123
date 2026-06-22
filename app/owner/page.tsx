@@ -1,7 +1,13 @@
 import type React from "react"
 import Link from "next/link"
 import { Building2, Eye, Pencil, Plus, Power, UserPlus } from "lucide-react"
-import { createHubAction, createHubAdminAction, toggleHubAction, updateHubAction } from "@/app/actions/owner"
+import {
+  createHubAction,
+  createHubAdminAction,
+  toggleHubAction,
+  updateHubAction,
+  updateHubAdminAction,
+} from "@/app/actions/owner"
 import { requireRole } from "@/app/actions/auth"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { EmptyState } from "@/components/empty-state"
@@ -19,6 +25,7 @@ type HubAdmin = {
   username: string
   display_name: string | null
   hub_id: string | null
+  position: string | null
 }
 
 export default async function OwnerPage() {
@@ -29,7 +36,7 @@ export default async function OwnerPage() {
     supabase.from("hubs").select("*").order("created_at", { ascending: false }),
     supabase
       .from("users")
-      .select("id, username, display_name, hub_id")
+      .select("id, username, display_name, hub_id, position")
       .eq("role", "hub_admin")
       .order("username"),
   ])
@@ -178,6 +185,7 @@ export default async function OwnerPage() {
                   </select>
                 </div>
                 <Field label="Аты" name="displayName" placeholder="Директор" />
+                <Field label="Должность" name="position" placeholder="Региональный директор" />
                 <Field label="Логин" name="username" placeholder="astana_admin" required />
                 <Field label="Құпиясөз" name="password" type="password" required />
                 <Button type="submit" className="w-full">
@@ -185,6 +193,44 @@ export default async function OwnerPage() {
                   Қосу
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Pencil className="h-4 w-4 text-primary" />
+                Редактировать директоров
+              </CardTitle>
+              <CardDescription>Имя, должность, логин и новый пароль директора.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {adminList.length === 0 ? (
+                <EmptyState>Директоров пока нет.</EmptyState>
+              ) : (
+                <div className="space-y-3">
+                  {adminList.map((admin) => (
+                    <form
+                      key={admin.id}
+                      action={formAction(updateHubAdminAction)}
+                      className="rounded-lg border border-border bg-background/40 p-3"
+                    >
+                      <input type="hidden" name="adminId" value={admin.id} />
+                      <input type="hidden" name="hubId" value={admin.hub_id ?? ""} />
+                      <div className="space-y-3">
+                        <Field label="Имя" name="displayName" defaultValue={admin.display_name ?? admin.username} required />
+                        <Field label="Должность" name="position" defaultValue={admin.position ?? ""} />
+                        <Field label="Логин" name="username" defaultValue={admin.username} required />
+                        <Field label="Новый пароль" name="password" type="password" placeholder="Оставьте пустым" />
+                        <Button type="submit" variant="outline" className="w-full">
+                          <Pencil className="h-4 w-4" />
+                          Сохранить
+                        </Button>
+                      </div>
+                    </form>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </aside>

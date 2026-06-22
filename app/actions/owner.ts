@@ -54,6 +54,7 @@ export async function createHubAdminAction(formData: FormData): Promise<ActionRe
   const username = String(formData.get("username") ?? "").trim().toLowerCase()
   const password = String(formData.get("password") ?? "")
   const displayName = String(formData.get("displayName") ?? "").trim()
+  const position = String(formData.get("position") ?? "").trim()
 
   if (!hubId || !username || !password) {
     return { ok: false, message: "Хаб, логин және құпиясөз міндетті" }
@@ -66,6 +67,7 @@ export async function createHubAdminAction(formData: FormData): Promise<ActionRe
     role: "hub_admin",
     hub_id: hubId,
     display_name: displayName || username,
+    position: position || null,
   })
 
   if (error) {
@@ -74,6 +76,49 @@ export async function createHubAdminAction(formData: FormData): Promise<ActionRe
   }
   revalidatePath("/owner")
   return { ok: true, message: "Директор қосылды" }
+}
+
+export async function updateHubAdminAction(formData: FormData): Promise<ActionResult> {
+  if (!(await requireSuper())) return { ok: false, message: "Нет доступа" }
+
+  const adminId = String(formData.get("adminId") ?? "")
+  const hubId = String(formData.get("hubId") ?? "")
+  const username = String(formData.get("username") ?? "").trim().toLowerCase().replace(/\s+/g, "")
+  const password = String(formData.get("password") ?? "")
+  const displayName = String(formData.get("displayName") ?? "").trim()
+  const position = String(formData.get("position") ?? "").trim()
+
+  if (!adminId || !hubId || !username || !displayName) {
+    return { ok: false, message: "Имя, логин и хаб обязательны" }
+  }
+
+  const updates: Record<string, string | null> = {
+    username,
+    display_name: displayName,
+    position: position || null,
+    updated_at: new Date().toISOString(),
+  }
+
+  if (password.trim()) {
+    updates.password = hashPassword(password)
+  }
+
+  const supabase = getAdminClient()
+  const { error } = await supabase
+    .from("users")
+    .update(updates)
+    .eq("id", adminId)
+    .eq("hub_id", hubId)
+    .eq("role", "hub_admin")
+
+  if (error) {
+    if (error.code === "23505") return { ok: false, message: "Этот логин уже занят" }
+    return { ok: false, message: error.message }
+  }
+
+  revalidatePath("/owner")
+  revalidatePath(`/owner/hubs/${hubId}`)
+  return { ok: true, message: "Директор обновлен" }
 }
 
 export async function updateHubAction(formData: FormData): Promise<ActionResult> {
