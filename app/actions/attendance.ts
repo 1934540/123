@@ -14,6 +14,7 @@ export type AttendanceResult = {
 }
 
 type AttendanceInput = {
+  mode: "check_in" | "check_out"
   lat: number | null
   lng: number | null
   deviceId: string
@@ -99,6 +100,10 @@ export async function markAttendanceAction(input: AttendanceInput): Promise<Atte
     .maybeSingle()
 
   if (!log) {
+    if (input.mode === "check_out") {
+      return { ok: false, message: "Сначала отметьте приход, потом уход." }
+    }
+
     let status = "On Time"
     if (shift && shift.start_time) {
       const shiftStart = parseTime(shift.start_time)
@@ -119,6 +124,10 @@ export async function markAttendanceAction(input: AttendanceInput): Promise<Atte
     })
     revalidatePath("/employee")
     return { ok: true, action: "check_in", distance, message: `Келу белгіленді (${status}): ${formatAppTime(nowStr)}` }
+  }
+
+  if (input.mode === "check_in") {
+    return { ok: false, message: "Приход уже отмечен. Для завершения дня нажмите «Ушел»." }
   }
 
   if (log.check_out_time) {

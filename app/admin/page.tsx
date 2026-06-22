@@ -1,6 +1,7 @@
 import type React from "react"
 import { MapPin, Power, UserPlus } from "lucide-react"
 import { addEmployeeAction, excuseLogAction, toggleEmployeeAction, updateGeofenceAction } from "@/app/actions/admin"
+import { DirectorAttendanceButton } from "@/app/admin/director-attendance-button"
 import { requireRole } from "@/app/actions/auth"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { EmptyState } from "@/components/empty-state"
@@ -11,13 +12,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { formatAppDateTime } from "@/lib/date"
+import { appDateString, formatAppDateTime } from "@/lib/date"
 import { getAdminClient } from "@/lib/supabase/admin"
-import type { AttendanceLog, Employee, Hub } from "@/lib/types"
+import type { AttendanceLog, DirectorAttendanceLog, Employee, Hub } from "@/lib/types"
 
 export default async function AdminPage() {
   const session = await requireRole("hub_admin", "super_admin")
   const supabase = getAdminClient()
+  const today = appDateString()
 
   let hubId = session.hubId
   if (!hubId && session.role === "super_admin") {
@@ -33,7 +35,7 @@ export default async function AdminPage() {
     )
   }
 
-  const [{ data: hub }, { data: employees }, { data: logs }] = await Promise.all([
+  const [{ data: hub }, { data: employees }, { data: logs }, { data: directorLog }] = await Promise.all([
     supabase.from("hubs").select("*").eq("id", hubId).maybeSingle(),
     supabase.from("employees").select("*").eq("hub_id", hubId).order("created_at", { ascending: false }),
     supabase
@@ -43,11 +45,20 @@ export default async function AdminPage() {
       .order("date", { ascending: false })
       .order("check_in_time", { ascending: false })
       .limit(30),
+    session.role === "hub_admin"
+      ? supabase
+          .from("director_attendance_logs")
+          .select("*")
+          .eq("user_id", session.userId)
+          .eq("date", today)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
 
   const currentHub = hub as Hub | null
   const employeeList = (employees ?? []) as Employee[]
   const logList = (logs ?? []) as AttendanceLog[]
+  const todayDirectorLog = directorLog as DirectorAttendanceLog | null
 
   return (
     <DashboardShell session={session} title={currentHub?.name ?? "Хаб директоры панелі"}>
@@ -167,6 +178,32 @@ export default async function AdminPage() {
         </section>
 
         <aside className="space-y-4">
+          {session.role === "hub_admin" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Моя отметка</CardTitle>
+                <CardDescription>Прибытие и отбытие директора хаба за сегодня.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2 text-sm">
+                  <InfoRow label="Прибытие" value={formatAppDateTime(todayDirectorLog?.check_in_time)} />
+                  <InfoRow label="Отбытие" value={formatAppDateTime(todayDirectorLog?.check_out_time)} />
+                  <InfoRow label="Длительность" value={todayDirectorLog?.work_duration ?? "—"} />
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Статус</span>
+                    <Badge variant={statusVariant(todayDirectorLog?.status ?? null)}>
+                      {todayDirectorLog?.status ?? "—"}
+                    </Badge>
+                  </div>
+                </div>
+                <DirectorAttendanceButton
+                  hasCheckedIn={Boolean(todayDirectorLog?.check_in_time)}
+                  hasCheckedOut={Boolean(todayDirectorLog?.check_out_time)}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -217,6 +254,15 @@ export default async function AdminPage() {
         </aside>
       </div>
     </DashboardShell>
+  )
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
   )
 }
 

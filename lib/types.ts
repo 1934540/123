@@ -67,6 +67,22 @@ export type AttendanceLog = {
   created_at: string
 }
 
+export type DirectorAttendanceLog = {
+  id: string
+  user_id: string
+  hub_id: string | null
+  date: string
+  check_in_time: string | null
+  check_out_time: string | null
+  work_duration: string | null
+  status: string | null
+  location_in_lat: number | null
+  location_in_lng: number | null
+  location_out_lat: number | null
+  location_out_lng: number | null
+  created_at: string
+}
+
 export type Break = {
   id: string
   attendance_log_id: string

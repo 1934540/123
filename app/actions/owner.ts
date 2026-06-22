@@ -76,6 +76,34 @@ export async function createHubAdminAction(formData: FormData): Promise<ActionRe
   return { ok: true, message: "Директор қосылды" }
 }
 
+export async function updateHubAction(formData: FormData): Promise<ActionResult> {
+  if (!(await requireSuper())) return { ok: false, message: "Рұқсат жоқ" }
+
+  const hubId = String(formData.get("hubId") ?? "")
+  const name = String(formData.get("name") ?? "").trim()
+  const city = String(formData.get("city") ?? "").trim()
+
+  if (!hubId || !name) {
+    return { ok: false, message: "Хаб және атауы міндетті" }
+  }
+
+  const supabase = getAdminClient()
+  const { error } = await supabase
+    .from("hubs")
+    .update({
+      name,
+      city: city || null,
+      slug: slugify(name) || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", hubId)
+
+  if (error) return { ok: false, message: error.message }
+  revalidatePath("/owner")
+  revalidatePath(`/owner/hubs/${hubId}`)
+  return { ok: true, message: "Хаб жаңартылды" }
+}
+
 export async function toggleHubAction(formData: FormData): Promise<ActionResult> {
   if (!(await requireSuper())) return { ok: false, message: "Рұқсат жоқ" }
 

@@ -1,7 +1,7 @@
 import type React from "react"
 import Link from "next/link"
-import { Building2, Eye, Plus, Power, UserPlus } from "lucide-react"
-import { createHubAction, createHubAdminAction, toggleHubAction } from "@/app/actions/owner"
+import { Building2, Eye, Pencil, Plus, Power, UserPlus } from "lucide-react"
+import { createHubAction, createHubAdminAction, toggleHubAction, updateHubAction } from "@/app/actions/owner"
 import { requireRole } from "@/app/actions/auth"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { EmptyState } from "@/components/empty-state"
@@ -118,6 +118,37 @@ export default async function OwnerPage() {
                   Құру
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Pencil className="h-4 w-4 text-primary" />
+                Редактировать хабы
+              </CardTitle>
+              <CardDescription>Изменить название и город хаба.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {hubList.length === 0 ? (
+                <EmptyState>Әзірге хаб жоқ.</EmptyState>
+              ) : (
+                <div className="space-y-3">
+                  {hubList.map((hub) => (
+                    <form key={hub.id} action={formAction(updateHubAction)} className="rounded-lg border border-border bg-background/40 p-3">
+                      <input type="hidden" name="hubId" value={hub.id} />
+                      <div className="space-y-3">
+                        <Field label="Атауы" name="name" defaultValue={hub.name} required />
+                        <Field label="Қала" name="city" defaultValue={hub.city ?? ""} />
+                        <Button type="submit" variant="outline" className="w-full">
+                          <Pencil className="h-4 w-4" />
+                          Сақтау
+                        </Button>
+                      </div>
+                    </form>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 

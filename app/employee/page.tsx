@@ -67,7 +67,11 @@ export default async function EmployeePage() {
               {currentEmployee?.is_active === false ? (
                 <EmptyState>Аккаунт өшірілген. Әкімшіге хабарласыңыз.</EmptyState>
               ) : (
-                <AttendanceButton activeBreak={activeBreak} />
+                <AttendanceButton
+                  activeBreak={activeBreak}
+                  hasCheckedIn={Boolean(log?.check_in_time)}
+                  hasCheckedOut={Boolean(log?.check_out_time)}
+                />
               )}
             </CardContent>
           </Card>
