@@ -13,5 +13,7 @@ __v0_jsx-dev-runtime.ts
 # Common ignores
 node_modules
 .next/
+mobile/.expo/
+mobile/*.log
 tsconfig.tsbuildinfo
 .DS_Store

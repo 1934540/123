@@ -1,12 +1,13 @@
 import * as Location from "expo-location"
 import * as SecureStore from "expo-secure-store"
 import * as TaskManager from "expo-task-manager"
-import { useEffect, useMemo, useState } from "react"
-import { ActivityIndicator, Alert, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native"
 
 const LOCATION_TASK = "astanahub-shift-location"
 const TOKEN_KEY = "astanahub_mobile_token"
 const API_URL_KEY = "astanahub_mobile_api_url"
+const GPS_SAMPLE_INTERVAL_MS = 30 * 60 * 1000
 
 const defaultApiUrl = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000"
 
@@ -53,6 +54,8 @@ export default function App() {
   const [message, setMessage] = useState("Войдите под аккаунтом сотрудника")
   const [loading, setLoading] = useState(false)
   const [tracking, setTracking] = useState(false)
+  const foregroundSubscription = useRef<Location.LocationSubscription | null>(null)
+  const foregroundInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const canWork = useMemo(() => Boolean(token && employee), [token, employee])
 
@@ -136,29 +139,52 @@ export default function App() {
     const foreground = await Location.requestForegroundPermissionsAsync()
     if (!foreground.granted) throw new Error("Разрешите доступ к GPS")
 
-    const background = await Location.requestBackgroundPermissionsAsync()
-    if (!background.granted) {
-      Alert.alert("Фоновый GPS", "Разрешите постоянный доступ к геолокации, чтобы мониторинг работал во время смены.")
-    }
+    const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
+    await sendLocation(current)
 
-    const started = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)
-    if (!started) {
-      await Location.startLocationUpdatesAsync(LOCATION_TASK, {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 180000,
-        distanceInterval: 100,
-        pausesUpdatesAutomatically: false,
-        foregroundService: {
-          notificationTitle: "AstanaHub Employee",
-          notificationBody: "GPS-мониторинг активен во время смены",
-        },
-      })
-    }
+    await startForegroundTracking()
     setTracking(true)
+    setMessage("GPS-мониторинг активен. Для фонового режима нужна dev-сборка приложения.")
+  }
+
+  async function startForegroundTracking() {
+    foregroundSubscription.current?.remove()
+    foregroundSubscription.current = null
+    if (foregroundInterval.current) clearInterval(foregroundInterval.current)
+
+    foregroundInterval.current = setInterval(() => {
+      void Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+        .then(sendLocation)
+        .catch((error) => {
+          setMessage(error instanceof Error ? error.message : "GPS-точка не сохранена")
+        })
+    }, GPS_SAMPLE_INTERVAL_MS)
+  }
+
+  async function sendLocation(position: Location.LocationObject) {
+    if (!token) return
+    const res = await fetch(`${apiUrl}/api/mobile/location`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+      }),
+    })
+    const payload = (await res.json().catch(() => ({}))) as { error?: string }
+    if (!res.ok) throw new Error(payload.error ?? "GPS-точка не сохранена")
   }
 
   async function stopTracking() {
-    const started = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)
+    foregroundSubscription.current?.remove()
+    foregroundSubscription.current = null
+    if (foregroundInterval.current) clearInterval(foregroundInterval.current)
+    foregroundInterval.current = null
+    const started = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK).catch(() => false)
     if (started) await Location.stopLocationUpdatesAsync(LOCATION_TASK)
     setTracking(false)
   }

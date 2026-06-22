@@ -83,8 +83,15 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ ok: true, action: "check_in", distance, message: `Приход: ${formatAppTime(nowStr)}` })
   }
 
-  if (body.mode === "check_in") return NextResponse.json({ error: "Приход уже отмечен" }, { status: 400 })
   if (log.check_out_time) return NextResponse.json({ error: "Уход уже отмечен" }, { status: 400 })
+  if (body.mode === "check_in") {
+    return NextResponse.json({
+      ok: true,
+      action: "check_in",
+      distance,
+      message: "Приход уже отмечен. GPS-мониторинг включен.",
+    })
+  }
 
   const durationMs = Math.max(0, new Date(nowStr).getTime() - new Date(log.check_in_time as string).getTime())
   const { error } = await supabase

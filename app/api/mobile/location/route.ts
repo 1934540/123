@@ -35,15 +35,15 @@ export async function POST(req: Request): Promise<Response> {
     .eq("id", employee.hub_id)
     .maybeSingle()
 
-  if (!hub?.geofence_enabled || hub.latitude == null || hub.longitude == null) {
+  if (!hub || hub.latitude == null || hub.longitude == null) {
     return NextResponse.json({ ok: true, inside: true })
   }
 
   const distance = Math.round(haversineMeters(body.lat, body.lng, hub.latitude, hub.longitude))
-  const inside = distance <= hub.geofence_radius
+  const inside = !hub.geofence_enabled || distance <= hub.geofence_radius
   const recordedAt = new Date().toISOString()
 
-  await supabase.from("employee_location_points").insert({
+  const { error: pointError } = await supabase.from("employee_location_points").insert({
     employee_id: employee.id,
     hub_id: hub.id,
     latitude: body.lat,
@@ -55,8 +55,10 @@ export async function POST(req: Request): Promise<Response> {
     recorded_at: recordedAt,
   })
 
-  if (!inside) {
-    await supabase.from("geofence_events").insert({
+  if (pointError) return NextResponse.json({ error: pointError.message }, { status: 500 })
+
+  if (hub.geofence_enabled && !inside) {
+    const { error: eventError } = await supabase.from("geofence_events").insert({
       employee_id: employee.id,
       hub_id: hub.id,
       event_type: "outside_geofence",
@@ -67,6 +69,7 @@ export async function POST(req: Request): Promise<Response> {
       radius_meters: hub.geofence_radius,
       created_at: recordedAt,
     })
+    if (eventError) return NextResponse.json({ error: eventError.message }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true, inside, distance, radius: hub.geofence_radius })
