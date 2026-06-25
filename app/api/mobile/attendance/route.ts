@@ -94,6 +94,26 @@ export async function POST(req: Request): Promise<Response> {
     }
   }
 
+  if (body.lat != null && body.lng != null && hub.latitude != null && hub.longitude != null) {
+    const pointDistance = Math.round(haversineMeters(body.lat, body.lng, hub.latitude, hub.longitude))
+    const pointInside = !hub.geofence_enabled || pointDistance <= hub.geofence_radius
+    distance = distance ?? pointDistance
+
+    const { error: pointError } = await supabase.from("employee_location_points").insert({
+      employee_id: employee.id,
+      hub_id: hub.id,
+      latitude: body.lat,
+      longitude: body.lng,
+      accuracy: null,
+      distance_meters: pointDistance,
+      radius_meters: hub.geofence_radius,
+      is_inside_geofence: pointInside,
+      recorded_at: nowStr,
+    })
+
+    if (pointError) return NextResponse.json({ error: pointError.message }, { status: 500 })
+  }
+
   const { data: log } = await supabase
     .from("attendance_logs")
     .select("id, check_in_time, check_out_time, status")

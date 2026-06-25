@@ -11,9 +11,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "GPS нужен для отметки прихода и ухода.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "GPS используется во время смены для контроля выхода за радиус хаба.",
-        "UIBackgroundModes": [
-          "location"
-        ]
+        "NSLocationAlwaysUsageDescription": "GPS используется во время смены для контроля выхода за радиус хаба.",
+        "UIBackgroundModes": ["location"]
       }
     },
     "android": {
@@ -31,6 +30,7 @@
       [
         "expo-location",
         {
+          "locationWhenInUsePermission": "GPS нужен для отметки прихода и ухода.",
           "locationAlwaysAndWhenInUsePermission": "GPS используется во время смены для контроля выхода за радиус хаба.",
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
@@ -39,7 +39,7 @@
       "expo-secure-store"
     ],
     "extra": {
-      "apiUrl": "http://192.168.100.161:3000"
+      "apiUrl": "https://123-six-henna-71.vercel.app"
     }
   }
 }

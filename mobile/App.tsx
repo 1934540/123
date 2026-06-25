@@ -2,7 +2,7 @@ import * as Location from "expo-location"
 import * as SecureStore from "expo-secure-store"
 import * as TaskManager from "expo-task-manager"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native"
+import { ActivityIndicator, Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native"
 
 const LOCATION_TASK = "astanahub-shift-location"
 const TOKEN_KEY = "astanahub_mobile_token"
@@ -343,7 +343,9 @@ export default function App() {
     await sendLocation(current).catch(() => undefined)
 
     await startForegroundTracking()
-    await startBackgroundTracking()
+    if (Platform.OS !== "ios") {
+      await startBackgroundTracking()
+    }
     setTracking(true)
   }
 
