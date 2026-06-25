@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/auto-checkout",
+      "schedule": "30 13 * * 1-5"
+    },
+    {
+      "path": "/api/cron/supabase-keepalive",
+      "schedule": "0 4,16 * * *"
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import { getAdminClient } from "@/lib/supabase/admin"
 import { getSession } from "@/lib/session"
 import { haversineMeters, formatDuration } from "@/lib/geo"
 import { appDateString, formatAppTime } from "@/lib/date"
+import { appWeekRange, attendanceStatusForCheckIn, GRACE_STATUS } from "@/lib/work-schedule"
 
 export type AttendanceResult = {
   ok: boolean
@@ -18,13 +19,6 @@ type AttendanceInput = {
   lat: number | null
   lng: number | null
   deviceId: string
-}
-
-function parseTime(timeStr: string): Date {
-  const [hours, minutes, seconds] = timeStr.split(":").map(Number)
-  const d = new Date()
-  d.setHours(hours, minutes, seconds || 0, 0)
-  return d
 }
 
 export async function markAttendanceAction(input: AttendanceInput): Promise<AttendanceResult> {
@@ -64,12 +58,6 @@ export async function markAttendanceAction(input: AttendanceInput): Promise<Atte
     return { ok: false, message: "Бұл аккаунт басқа құрылғыға байланысқан. Әкімшіге хабарласыңыз." }
   }
 
-  let shift = null
-  if (employee.shift_id) {
-    const { data } = await supabase.from("shifts").select("*").eq("id", employee.shift_id).maybeSingle()
-    shift = data
-  }
-
   let distance: number | undefined
   if (hub.geofence_enabled) {
     if (input.lat == null || input.lng == null) {
@@ -104,13 +92,15 @@ export async function markAttendanceAction(input: AttendanceInput): Promise<Atte
       return { ok: false, message: "Сначала отметьте приход, потом уход." }
     }
 
-    let status = "On Time"
-    if (shift && shift.start_time) {
-      const shiftStart = parseTime(shift.start_time)
-      if (now > shiftStart) {
-        status = "Late"
-      }
-    }
+    const weekRange = appWeekRange(now)
+    const { count: weeklyGraceCount } = await supabase
+      .from("attendance_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("employee_id", employee.id)
+      .gte("date", weekRange.start)
+      .lt("date", weekRange.nextStart)
+      .eq("status", GRACE_STATUS)
+    const status = attendanceStatusForCheckIn(now, weeklyGraceCount ?? 0)
 
     await supabase.from("attendance_logs").insert({
       employee_id: employee.id,
@@ -135,11 +125,16 @@ export async function markAttendanceAction(input: AttendanceInput): Promise<Atte
   }
 
   let outStatus = log.status || "On Time"
-  if (shift && shift.end_time) {
-    const shiftEnd = parseTime(shift.end_time)
-    if (now < shiftEnd) {
-      outStatus = "Early Leave"
-    }
+  const appParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Qyzylorda",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now)
+  const values = Object.fromEntries(appParts.map((part) => [part.type, part.value]))
+  const checkoutMinutes = Number(values.hour) * 60 + Number(values.minute)
+  if (checkoutMinutes < 18 * 60 + 30) {
+    outStatus = "Early Leave"
   }
 
   const checkInTime = new Date(log.check_in_time as string).getTime()

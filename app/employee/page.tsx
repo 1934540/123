@@ -176,6 +176,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function statusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
   if (status === "Late" || status === "Early Leave") return "destructive"
-  if (status === "Auto-closed") return "outline"
+  if (status === "Auto-closed" || status === "Закрыто автоматически") return "outline"
+  if (status === "В пределах 10 минут") return "secondary"
   return status ? "default" : "secondary"
 }

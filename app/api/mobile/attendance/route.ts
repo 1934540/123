@@ -3,6 +3,7 @@ import { appDateString, formatAppTime } from "@/lib/date"
 import { formatDuration, haversineMeters } from "@/lib/geo"
 import { verifyMobileToken } from "@/lib/mobile-auth"
 import { getAdminClient } from "@/lib/supabase/admin"
+import { appWeekRange, attendanceStatusForCheckIn, GRACE_STATUS } from "@/lib/work-schedule"
 
 type AttendanceBody = {
   mode?: "check_in" | "check_out"
@@ -123,13 +124,24 @@ export async function POST(req: Request): Promise<Response> {
 
   if (!log) {
     if (body.mode === "check_out") return NextResponse.json({ error: "Сначала отметьте приход" }, { status: 400 })
+    const weekRange = appWeekRange(new Date(nowStr))
+    const { count: weeklyGraceCount } = await supabase
+      .from("attendance_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("employee_id", employee.id)
+      .gte("date", weekRange.start)
+      .lt("date", weekRange.nextStart)
+      .eq("status", GRACE_STATUS)
+    const status = approvedRemoteWorkRequest
+      ? "Remote Work Approved"
+      : attendanceStatusForCheckIn(new Date(nowStr), weeklyGraceCount ?? 0)
 
     const { error } = await supabase.from("attendance_logs").insert({
       employee_id: employee.id,
       hub_id: hub.id,
       date: today,
       check_in_time: nowStr,
-      status: approvedRemoteWorkRequest ? "Remote Work Approved" : "On Time",
+      status,
       location_in_lat: body.lat,
       location_in_lng: body.lng,
       device_id_used: body.deviceId,
@@ -140,7 +152,7 @@ export async function POST(req: Request): Promise<Response> {
       ok: true,
       action: "check_in",
       distance,
-      message: `Приход: ${formatAppTime(nowStr)}${approvedRemoteWorkRequest ? " (вне зоны по разрешению)" : ""}`,
+      message: `Приход: ${formatAppTime(nowStr)} (${status})${approvedRemoteWorkRequest ? " (вне зоны по разрешению)" : ""}`,
     })
   }
 

@@ -1,53 +1,68 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { isCronRequestAuthorized } from "@/lib/cron-auth"
 import { appDateString } from "@/lib/date"
+import { formatDuration } from "@/lib/geo"
+import { getAdminClient } from "@/lib/supabase/admin"
+import { appTimeParts, AUTO_CLOSED_STATUS, isAfterWorkEnd, isWorkday } from "@/lib/work-schedule"
 
-// Note: Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set in env
-export async function GET(req: Request) {
-  // Simple check for authorization header if you want to secure the cron
-  const authHeader = req.headers.get("authorization")
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+type OpenAttendanceLog = {
+  id: string
+  check_in_time: string | null
+}
+
+export async function GET(req: Request): Promise<Response> {
+  if (!isCronRequestAuthorized(req)) {
     return new NextResponse("Unauthorized", { status: 401 })
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
-  
-  if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json({ error: "Supabase configuration missing" }, { status: 500 })
+  const now = new Date()
+  const { weekday, hour, minute } = appTimeParts(now)
+  const today = appDateString(now)
+
+  if (!isWorkday(weekday)) {
+    return NextResponse.json({ success: true, skipped: true, reason: "weekend", date: today })
   }
 
-  const supabase = createClient(supabaseUrl, supabaseKey)
+  if (!isAfterWorkEnd(hour, minute)) {
+    return NextResponse.json({ success: true, skipped: true, reason: "before_work_end", date: today })
+  }
 
-  const today = appDateString()
-  const nowStr = new Date().toISOString()
-
-  // Find all open attendance logs for today
+  const supabase = getAdminClient()
   const { data: openLogs, error } = await supabase
     .from("attendance_logs")
-    .select("id")
+    .select("id, check_in_time")
     .eq("date", today)
     .is("check_out_time", null)
 
-  if (error || !openLogs) {
+  if (error) {
     return NextResponse.json({ error: "Failed to fetch logs" }, { status: 500 })
   }
 
-  // Update them to Auto-closed
-  if (openLogs.length > 0) {
-    const ids = openLogs.map((log) => log.id)
-    await supabase
+  const logs = (openLogs ?? []) as OpenAttendanceLog[]
+  const nowStr = now.toISOString()
+  let closed = 0
+
+  for (const log of logs) {
+    const checkInMs = log.check_in_time ? new Date(log.check_in_time).getTime() : NaN
+    const durationMs = Number.isNaN(checkInMs) ? 0 : Math.max(0, now.getTime() - checkInMs)
+    const { error: updateError } = await supabase
       .from("attendance_logs")
       .update({
         check_out_time: nowStr,
-        status: "Auto-closed",
+        work_duration: formatDuration(durationMs),
+        status: AUTO_CLOSED_STATUS,
         updated_at: nowStr,
       })
-      .in("id", ids)
+      .eq("id", log.id)
+      .is("check_out_time", null)
+
+    if (!updateError) closed++
   }
 
-  return NextResponse.json({ 
-    success: true, 
-    message: `Auto-closed ${openLogs.length} sessions.` 
+  return NextResponse.json({
+    success: true,
+    date: today,
+    closed,
+    message: `Закрыто автоматически: ${closed}`,
   })
 }
