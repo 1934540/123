@@ -1,9 +1,11 @@
 import type React from "react"
-import { AlertTriangle, Download, MapPin, Power, Upload, UserPlus } from "lucide-react"
+import { AlertTriangle, Download, MapPin, Power, Trash2, Upload, UserPlus } from "lucide-react"
 import {
   addEmployeeAction,
+  deleteEmployeeAction,
   excuseLogAction,
   importEmployeesAction,
+  reviewRemoteWorkRequestAction,
   toggleEmployeeAction,
   updateEmployeeAction,
   updateGeofenceAction,
@@ -17,13 +19,16 @@ import { PresenceMap } from "@/components/presence-map"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { appDateString, formatAppDateTime } from "@/lib/date"
 import { currentMonth } from "@/lib/excel-report"
 import { getAdminClient } from "@/lib/supabase/admin"
-import type { AttendanceLog, DirectorAttendanceLog, Employee, EmployeeLocationPoint, GeofenceEvent, Hub } from "@/lib/types"
+import type { AttendanceLog, DirectorAttendanceLog, Employee, EmployeeLocationPoint, GeofenceEvent, Hub, RemoteWorkRequest } from "@/lib/types"
+
+const LOCATION_POINT_MAX_AGE_MS = 35 * 60 * 1000
 
 export default async function AdminPage() {
   const session = await requireRole("hub_admin", "super_admin")
@@ -45,7 +50,15 @@ export default async function AdminPage() {
     )
   }
 
-  const [{ data: hub }, { data: employees }, { data: logs }, { data: directorLog }, { data: geofenceEvents }, { data: locationPoints }] =
+  const [
+    { data: hub },
+    { data: employees },
+    { data: logs },
+    { data: directorLog },
+    { data: geofenceEvents },
+    { data: locationPoints },
+    { data: remoteWorkRequests },
+  ] =
     await Promise.all([
     supabase.from("hubs").select("*").eq("id", hubId).maybeSingle(),
     supabase.from("employees").select("*").eq("hub_id", hubId).order("created_at", { ascending: false }),
@@ -76,6 +89,12 @@ export default async function AdminPage() {
       .eq("hub_id", hubId)
       .order("recorded_at", { ascending: false })
       .limit(500),
+    supabase
+      .from("remote_work_requests")
+      .select("*")
+      .eq("hub_id", hubId)
+      .order("requested_at", { ascending: false })
+      .limit(20),
   ])
 
   const currentHub = hub as Hub | null
@@ -84,6 +103,9 @@ export default async function AdminPage() {
   const todayDirectorLog = directorLog as DirectorAttendanceLog | null
   const eventList = (geofenceEvents ?? []) as GeofenceEvent[]
   const pointList = (locationPoints ?? []) as EmployeeLocationPoint[]
+  const remoteWorkRequestList = (remoteWorkRequests ?? []) as RemoteWorkRequest[]
+  const pendingRemoteWorkRequests = remoteWorkRequestList.filter((request) => request.status === "pending")
+  const nowMs = Date.now()
   const latestPointByEmployee = new Map<string, EmployeeLocationPoint>()
   for (const point of pointList) {
     if (!latestPointByEmployee.has(point.employee_id)) latestPointByEmployee.set(point.employee_id, point)
@@ -92,12 +114,15 @@ export default async function AdminPage() {
     .map((employee) => {
       const point = latestPointByEmployee.get(employee.id)
       if (!point) return null
+      const isFresh = nowMs - new Date(point.recorded_at).getTime() <= LOCATION_POINT_MAX_AGE_MS
       return {
         id: employee.id,
         name: employee.name,
         latitude: point.latitude,
         longitude: point.longitude,
-        isInside: point.is_inside_geofence,
+        isFresh,
+        ageMinutes: Math.max(0, Math.floor((nowMs - new Date(point.recorded_at).getTime()) / 60000)),
+        isInside: isFresh && point.is_inside_geofence,
         distanceMeters: point.distance_meters,
         recordedAt: point.recorded_at,
       }
@@ -129,8 +154,8 @@ export default async function AdminPage() {
               )}
               <div className="grid gap-2 text-sm sm:grid-cols-3">
                 <InfoRow label="На территории" value={String(mapEmployees.filter((item) => item.isInside).length)} />
-                <InfoRow label="Вне радиуса" value={String(mapEmployees.filter((item) => !item.isInside).length)} />
-                <InfoRow label="Нет GPS" value={String(employeeList.length - mapEmployees.length)} />
+                <InfoRow label="Вне радиуса" value={String(mapEmployees.filter((item) => item.isFresh && !item.isInside).length)} />
+                <InfoRow label="Нет GPS" value={String(employeeList.length - mapEmployees.filter((item) => item.isFresh).length)} />
               </div>
             </CardContent>
           </Card>
@@ -176,15 +201,31 @@ export default async function AdminPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <form action={formAction(toggleEmployeeAction)}>
-                            <input type="hidden" name="hubId" value={hubId} />
-                            <input type="hidden" name="employeeId" value={employee.id} />
-                            <input type="hidden" name="isActive" value={String(employee.is_active)} />
-                            <Button size="sm" variant="outline" type="submit">
-                              <Power className="h-4 w-4" />
-                              {employee.is_active ? "Өшіру" : "Қосу"}
-                            </Button>
-                          </form>
+                          <div className="flex justify-end gap-2">
+                            <form action={formAction(toggleEmployeeAction)}>
+                              <input type="hidden" name="hubId" value={hubId} />
+                              <input type="hidden" name="employeeId" value={employee.id} />
+                              <input type="hidden" name="isActive" value={String(employee.is_active)} />
+                              <Button size="sm" variant="outline" type="submit">
+                                <Power className="h-4 w-4" />
+                                {employee.is_active ? "Отключить" : "Включить"}
+                              </Button>
+                            </form>
+                            <form action={formAction(deleteEmployeeAction)}>
+                              <input type="hidden" name="hubId" value={hubId} />
+                              <input type="hidden" name="employeeId" value={employee.id} />
+                              <ConfirmSubmitButton
+                                size="sm"
+                                variant="outline"
+                                type="submit"
+                                className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                                message={`Удалить сотрудника ${employee.name}? Это действие нельзя отменить.`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Удалить
+                              </ConfirmSubmitButton>
+                            </form>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -224,6 +265,57 @@ export default async function AdminPage() {
                     </form>
                   ))}
                 </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Заявки вне зоны</CardTitle>
+              <CardDescription>Сотрудники, которые работают вне радиуса хаба и ждут ручного решения директора.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {pendingRemoteWorkRequests.length === 0 ? (
+                <EmptyState>Ожидающих заявок нет.</EmptyState>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Время</TableHead>
+                      <TableHead>Сотрудник</TableHead>
+                      <TableHead>Причина</TableHead>
+                      <TableHead>Дистанция</TableHead>
+                      <TableHead className="text-right">Решение</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingRemoteWorkRequests.map((request) => (
+                      <TableRow key={request.id}>
+                        <TableCell>{formatAppDateTime(request.requested_at)}</TableCell>
+                        <TableCell>
+                          {employeeList.find((employee) => employee.id === request.employee_id)?.name ?? "—"}
+                        </TableCell>
+                        <TableCell className="max-w-72 whitespace-normal">{request.reason}</TableCell>
+                        <TableCell>{request.distance_meters == null ? "—" : `${request.distance_meters} м`}</TableCell>
+                        <TableCell>
+                          <form action={formAction(reviewRemoteWorkRequestAction)} className="ml-auto grid max-w-80 gap-2">
+                            <input type="hidden" name="hubId" value={hubId} />
+                            <input type="hidden" name="requestId" value={request.id} />
+                            <Input name="directorReason" placeholder="Комментарий директора" />
+                            <div className="flex justify-end gap-2">
+                              <Button size="sm" type="submit" name="decision" value="approved">
+                                Подтвердить
+                              </Button>
+                              <Button size="sm" type="submit" name="decision" value="rejected" variant="outline">
+                                Отклонить
+                              </Button>
+                            </div>
+                          </form>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>

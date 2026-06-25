@@ -7,6 +7,8 @@ type LocationBody = {
   lat?: number | null
   lng?: number | null
   accuracy?: number | null
+  deviceId?: string
+  recordedAt?: string
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -19,15 +21,24 @@ export async function POST(req: Request): Promise<Response> {
   if (body.lat == null || body.lng == null) {
     return NextResponse.json({ error: "Нужен GPS" }, { status: 400 })
   }
+  if (!body.deviceId) {
+    return NextResponse.json({ error: "Нужен ID устройства" }, { status: 400 })
+  }
 
   const supabase = getAdminClient()
   const { data: employee } = await supabase
     .from("employees")
-    .select("id, name, hub_id")
+    .select("id, name, hub_id, device_id")
     .eq("id", session.employeeId)
     .maybeSingle()
 
   if (!employee?.hub_id) return NextResponse.json({ error: "Хаб не назначен" }, { status: 400 })
+  const currentDeviceId = employee.device_id === "mobile-app" ? null : employee.device_id
+  if (!currentDeviceId) {
+    await supabase.from("employees").update({ device_id: body.deviceId }).eq("id", employee.id)
+  } else if (currentDeviceId !== body.deviceId) {
+    return NextResponse.json({ error: "Аккаунт привязан к другому устройству" }, { status: 403 })
+  }
 
   const { data: hub } = await supabase
     .from("hubs")
@@ -41,7 +52,8 @@ export async function POST(req: Request): Promise<Response> {
 
   const distance = Math.round(haversineMeters(body.lat, body.lng, hub.latitude, hub.longitude))
   const inside = !hub.geofence_enabled || distance <= hub.geofence_radius
-  const recordedAt = new Date().toISOString()
+  const recordedAtDate = body.recordedAt ? new Date(body.recordedAt) : new Date()
+  const recordedAt = Number.isNaN(recordedAtDate.getTime()) ? new Date().toISOString() : recordedAtDate.toISOString()
 
   const { error: pointError } = await supabase.from("employee_location_points").insert({
     employee_id: employee.id,

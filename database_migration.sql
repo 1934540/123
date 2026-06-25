@@ -94,5 +94,33 @@ CREATE TABLE IF NOT EXISTS public.geofence_events (
 
 ALTER TABLE public.geofence_events ENABLE ROW LEVEL SECURITY;
 
+-- 7. Employee requests for approved work outside hub geofence.
+CREATE TABLE IF NOT EXISTS public.remote_work_requests (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    employee_id uuid REFERENCES public.employees(id) ON DELETE CASCADE NOT NULL,
+    hub_id uuid REFERENCES public.hubs(id) ON DELETE CASCADE NOT NULL,
+    request_date date NOT NULL,
+    reason text NOT NULL,
+    status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    latitude double precision,
+    longitude double precision,
+    distance_meters integer,
+    device_id text,
+    requested_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+    reviewed_by uuid REFERENCES public.users(id) ON DELETE SET NULL,
+    reviewed_at timestamp with time zone,
+    director_reason text,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS remote_work_requests_hub_status_idx
+ON public.remote_work_requests (hub_id, status, requested_at DESC);
+
+CREATE INDEX IF NOT EXISTS remote_work_requests_employee_date_status_idx
+ON public.remote_work_requests (employee_id, request_date, status);
+
+ALTER TABLE public.remote_work_requests ENABLE ROW LEVEL SECURITY;
+
 -- Reload Supabase PostgREST schema cache after DDL changes.
 NOTIFY pgrst, 'reload schema';

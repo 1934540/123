@@ -16,6 +16,41 @@ async function requireHubAccess(hubId: string): Promise<{ ok: boolean; isSuper: 
   return { ok: false, isSuper: false }
 }
 
+export async function reviewRemoteWorkRequestAction(formData: FormData): Promise<ActionResult> {
+  const hubId = String(formData.get("hubId") ?? "")
+  const requestId = String(formData.get("requestId") ?? "")
+  const decision = String(formData.get("decision") ?? "")
+  const directorReason = String(formData.get("directorReason") ?? "").trim()
+  const access = await requireHubAccess(hubId)
+
+  if (!access.ok) return { ok: false, message: "Нет доступа" }
+  if (!requestId) return { ok: false, message: "Заявка не выбрана" }
+  if (decision !== "approved" && decision !== "rejected") return { ok: false, message: "Неверное решение" }
+  if (decision === "rejected" && directorReason.length < 3) {
+    return { ok: false, message: "Для отказа укажите причину" }
+  }
+
+  const session = await getSession()
+  const supabase = getAdminClient()
+  const { error } = await supabase
+    .from("remote_work_requests")
+    .update({
+      status: decision,
+      director_reason: directorReason || null,
+      reviewed_by: session?.userId ?? null,
+      reviewed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", requestId)
+    .eq("hub_id", hubId)
+    .eq("status", "pending")
+
+  if (error) return { ok: false, message: error.message }
+
+  revalidatePath("/admin")
+  return { ok: true, message: decision === "approved" ? "Заявка подтверждена" : "Заявка отклонена" }
+}
+
 export async function updateGeofenceAction(formData: FormData): Promise<ActionResult> {
   const hubId = String(formData.get("hubId") ?? "")
   const access = await requireHubAccess(hubId)
@@ -172,6 +207,23 @@ export async function toggleEmployeeAction(formData: FormData): Promise<ActionRe
 
   revalidatePath("/admin")
   return { ok: true, message: !isActive ? "Қызметкер қосылды" : "Қызметкер өшірілді" }
+}
+
+export async function deleteEmployeeAction(formData: FormData): Promise<ActionResult> {
+  const hubId = String(formData.get("hubId") ?? "")
+  const employeeId = String(formData.get("employeeId") ?? "")
+  const access = await requireHubAccess(hubId)
+  if (!access.ok) return { ok: false, message: "Нет доступа" }
+  if (!employeeId) return { ok: false, message: "Сотрудник не выбран" }
+
+  const supabase = getAdminClient()
+  const { error } = await supabase.from("employees").delete().eq("id", employeeId).eq("hub_id", hubId)
+
+  if (error) return { ok: false, message: error.message }
+
+  revalidatePath("/admin")
+  revalidatePath(`/owner/hubs/${hubId}`)
+  return { ok: true, message: "Сотрудник удален" }
 }
 
 export async function excuseLogAction(formData: FormData): Promise<ActionResult> {

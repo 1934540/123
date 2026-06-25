@@ -11,7 +11,9 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "GPS нужен для отметки прихода и ухода.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "GPS используется во время смены для контроля выхода за радиус хаба.",
-        "UIBackgroundModes": ["location"]
+        "UIBackgroundModes": [
+          "location"
+        ]
       }
     },
     "android": {
@@ -22,7 +24,8 @@
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION"
       ],
-      "package": "kz.astanahub.employee"
+      "package": "kz.astanahub.employee",
+      "usesCleartextTraffic": true
     },
     "plugins": [
       [
@@ -36,7 +39,7 @@
       "expo-secure-store"
     ],
     "extra": {
-      "apiUrl": "http://localhost:3000"
+      "apiUrl": "http://192.168.100.161:3000"
     }
   }
 }

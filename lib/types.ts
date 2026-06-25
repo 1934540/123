@@ -116,3 +116,22 @@ export type EmployeeLocationPoint = {
   is_inside_geofence: boolean
   recorded_at: string
 }
+
+export type RemoteWorkRequest = {
+  id: string
+  employee_id: string
+  hub_id: string
+  request_date: string
+  reason: string
+  status: "pending" | "approved" | "rejected"
+  latitude: number | null
+  longitude: number | null
+  distance_meters: number | null
+  device_id: string | null
+  requested_at: string
+  reviewed_by: string | null
+  reviewed_at: string | null
+  director_reason: string | null
+  created_at: string
+  updated_at: string
+}

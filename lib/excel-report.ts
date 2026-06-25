@@ -24,7 +24,7 @@ export function nextMonth(month: string): string {
 
 export function formatReportDateTime(value: string | null | undefined): string {
   const formatted = formatAppDateTime(value)
-  return formatted === "вЂ”" ? "-" : formatted
+  return formatted === "—" ? "-" : formatted
 }
 
 export function excelResponse(title: string, filename: string, headers: string[], rows: ReportCell[][]): Response {

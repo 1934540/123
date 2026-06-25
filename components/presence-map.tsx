@@ -7,9 +7,11 @@ type PresenceMapEmployee = {
   name: string
   latitude: number
   longitude: number
+  isFresh: boolean
   isInside: boolean
   distanceMeters: number
   recordedAt: string
+  ageMinutes: number
 }
 
 type PresenceMapProps = {
@@ -23,6 +25,15 @@ type PresenceMapProps = {
 }
 
 const FALLBACK_CENTER: [number, number] = [51.0909, 71.4187]
+
+function formatPointAge(minutes: number): string {
+  if (minutes < 1) return "только что"
+  if (minutes < 60) return `${minutes} мин назад`
+
+  const hours = Math.floor(minutes / 60)
+  const restMinutes = minutes % 60
+  return restMinutes > 0 ? `${hours} ч ${restMinutes} мин назад` : `${hours} ч назад`
+}
 
 export function PresenceMap({ hub, employees }: PresenceMapProps) {
   const center: [number, number] =
@@ -53,22 +64,26 @@ export function PresenceMap({ hub, employees }: PresenceMapProps) {
         </CircleMarker>
 
         {employees.map((employee) => {
-          const color = employee.isInside ? "#16a34a" : "#dc2626"
+          const color = !employee.isFresh ? "#64748b" : employee.isInside ? "#16a34a" : "#dc2626"
+          const status = !employee.isFresh ? "Нет свежего GPS" : employee.isInside ? "На территории" : "Вне радиуса"
+
           return (
             <CircleMarker
               key={employee.id}
               center={[employee.latitude, employee.longitude]}
               radius={9}
-              pathOptions={{ color, fillColor: color, fillOpacity: 0.9, weight: 3 }}
+              pathOptions={{ color, fillColor: color, fillOpacity: employee.isFresh ? 0.9 : 0.55, weight: 3 }}
             >
               <Popup>
                 <strong>{employee.name}</strong>
                 <br />
-                {employee.isInside ? "На территории" : "Вне радиуса"}
+                {status}
                 <br />
                 Дистанция: {employee.distanceMeters} м
                 <br />
-                Последняя точка: {new Date(employee.recordedAt).toLocaleString("ru-RU")}
+                Последняя точка: {formatPointAge(employee.ageMinutes)}
+                <br />
+                Время точки: {new Date(employee.recordedAt).toLocaleString("ru-RU")}
               </Popup>
             </CircleMarker>
           )

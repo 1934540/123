@@ -17,3 +17,6 @@ mobile/.expo/
 mobile/*.log
 tsconfig.tsbuildinfo
 .DS_Store
+mobile/*.apk
+mobile/android/.gradle/
+mobile/android/**/build/
